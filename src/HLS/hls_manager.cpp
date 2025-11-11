@@ -87,7 +87,7 @@
 #endif
 
 HLS_manager::HLS_manager(const ParameterConstRef _Param, const HLS_deviceRef _HLS_D)
-    : application_manager(FunctionExpanderConstRef(new FunctionExpander()), false, _Param),
+    : application_manager(FunctionExpanderConstRef(new FunctionExpander()), false, _Param), // TODO: toggle to true to allow recursive functions
       HLS_D(_HLS_D),
       memory_version(1),
       base_address(0),

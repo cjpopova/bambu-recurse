@@ -64,7 +64,7 @@ void CallSitesCollectorVisitor::discover_vertex(const vertex& v, const CallGraph
 
 void CallSitesCollectorVisitor::back_edge(const EdgeDescriptor&, const CallGraph&)
 {
-   THROW_ERROR("Recursive functions not supported");
+   THROW_ERROR("Recursive functions not supported"); // TODO
 }
 
 void CallSitesCollectorVisitor::examine_edge(const EdgeDescriptor& e, const CallGraph& g)

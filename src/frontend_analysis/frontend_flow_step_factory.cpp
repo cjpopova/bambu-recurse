@@ -759,6 +759,11 @@ FrontendFlowStepFactory::CreateFunctionFrontendFlowStep(const FrontendFlowStepTy
          return DesignFlowStepRef(
              new rebuild_initialization2(parameters, AppM, function_id, design_flow_manager.lock()));
       }
+      case RECURSION_REMOVAL:
+      {
+         return DesignFlowStepRef(
+             new RecursionRemoval(parameters, AppM, function_id, design_flow_manager.lock()));
+      }
       case REMOVE_CLOBBER_GA:
       {
          return DesignFlowStepRef(new remove_clobber_ga(AppM, function_id, design_flow_manager.lock(), parameters));

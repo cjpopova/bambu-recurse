@@ -2152,6 +2152,8 @@ src/frontend_analysis/IR_analysis/pragma_analysis.cpp
 src/frontend_analysis/IR_analysis/pragma_analysis.hpp
 src/frontend_analysis/IR_analysis/rebuild_initializations.cpp
 src/frontend_analysis/IR_analysis/rebuild_initializations.hpp
+src/frontend_analysis/IR_analysis/RecursionRemoval.cpp
+src/frontend_analysis/IR_analysis/RecursionRemoval.hpp
 src/frontend_analysis/IR_analysis/remove_clobber_ga.cpp
 src/frontend_analysis/IR_analysis/remove_clobber_ga.hpp
 src/frontend_analysis/IR_analysis/remove_ending_if.cpp

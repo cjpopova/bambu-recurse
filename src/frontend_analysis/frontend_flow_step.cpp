@@ -313,6 +313,8 @@ const std::string FrontendFlowStep::EnumToKindText(const FrontendFlowStepType fr
          return "RebuildInitialization";
       case(REBUILD_INITIALIZATION2):
          return "RebuildInitialization2";
+      case RECURSION_REMOVAL:
+         return "RecursionRemoval";
       case REMOVE_CLOBBER_GA:
          return "RemoveClobberGA";
       case REMOVE_ENDING_IF:
