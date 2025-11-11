@@ -53,3 +53,5 @@ build/
 build_release/
 obj/
 panda_dist/
+config.log
+dist_revision_info
