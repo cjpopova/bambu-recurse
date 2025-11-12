@@ -133,6 +133,7 @@
 #include "Range_Analysis.hpp"
 #include "eSSA.hpp"
 #include "rebuild_initializations.hpp"
+#include "RecursionRemoval.hpp"
 #include "remove_clobber_ga.hpp"
 #include "remove_ending_if.hpp"
 #include "scalar_ssa_data_dependence_computation.hpp"
