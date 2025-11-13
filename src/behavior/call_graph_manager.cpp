@@ -117,7 +117,7 @@ struct CalledFunctionsVisitor : public boost::default_dfs_visitor
 
    void back_edge(const EdgeDescriptor& e, const CallGraph& g)
    {
-      if(!allow_recursive_functions)
+      /*if(!allow_recursive_functions)
       {
          const auto& behaviors = g.CGetCallGraphInfo()->behaviors;
          const auto source = boost::source(e, g);
@@ -127,7 +127,14 @@ struct CalledFunctionsVisitor : public boost::default_dfs_visitor
              behaviors.at(call_graph_manager->get_function(source))->CGetBehavioralHelper()->get_function_name() +
              "-->" +
              behaviors.at(call_graph_manager->get_function(target))->CGetBehavioralHelper()->get_function_name());
-      }
+      }*/
+      const auto& behaviors = g.CGetCallGraphInfo()->behaviors;
+      const auto source = boost::source(e, g);
+      //const auto target = boost::target(e, g);
+         
+      std::cerr << "Call graph manager back edge: " + behaviors.at(call_graph_manager->get_function(source))->CGetBehavioralHelper()->get_function_name();
+
+      return;
    }
 
    /**

@@ -55,6 +55,27 @@ RecursionRemoval::ComputeFrontendRelationships(const DesignFlowStep::Relationshi
    return relationships;
 }
 
+static bool is_recursive(const function_decl* const fd, const function_type* const ft)
+{
+   bool is_recursive = false;
+   for(const auto i : AppM->CGetCallGraphManager()->get_called_by(function_id))
+   {
+      const auto curr_tn = TM->GetTreeNode(i);
+      const auto fdCalled = GetPointerS<const function_decl>(curr_tn);
+      if (fd == fdCalled) {
+         is_recursive = true;
+         break;
+      }
+   }
+
+   
+   std::cerr << "Is recursive: " 
+      + HLSMgr->CGetFunctionBehavior(function_id)->CGetBehavioralHelper()->get_function_name()
+      + " = " + is_recursive
+   return is_recursive;
+}
+
+
 DesignFlowStep_Status RecursionRemoval::InternalExec()
 {
    bool changed = false;
