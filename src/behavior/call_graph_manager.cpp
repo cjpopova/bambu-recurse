@@ -132,7 +132,9 @@ struct CalledFunctionsVisitor : public boost::default_dfs_visitor
       const auto source = boost::source(e, g);
       //const auto target = boost::target(e, g);
          
-      std::cerr << "Call graph manager back edge: " + behaviors.at(call_graph_manager->get_function(source))->CGetBehavioralHelper()->get_function_name();
+      std::cerr << "Call graph manager back edge: " 
+         + behaviors.at(call_graph_manager->get_function(source))->CGetBehavioralHelper()->get_function_name()
+         + "\n";
 
       return;
    }
@@ -220,7 +222,7 @@ void CallGraphManager::AddCallPoint(unsigned int caller_id, unsigned int called_
    THROW_ASSERT(IsVertex(called_id), "called function should be already added to the call_graph");
    const auto src = GetVertex(caller_id);
    const auto tgt = GetVertex(called_id);
-   if(called_by.at(caller_id).find(called_id) == called_by.at(caller_id).end())
+   if(called_by.at(caller_id).find(called_id) == called_by.at(caller_id).end()) // edge doesn't exist yet
    {
       INDENT_DBG_MEX(DEBUG_LEVEL_VERY_PEDANTIC, debug_level,
                      "---No previous call from " + caller_name + " to " + called_name);
@@ -228,11 +230,19 @@ void CallGraphManager::AddCallPoint(unsigned int caller_id, unsigned int called_
       call_graphs_collection->AddEdge(src, tgt, STD_SELECTOR);
       try
       {
+          std::cerr << "Trying toposort: " + STR(call_id) + " from " + caller_name + " to " + called_name +
+                    "\n";
          std::list<vertex> topological_sort;
          CallGraph(call_graphs_collection, STD_SELECTOR).TopologicalSort(topological_sort);
          INDENT_DBG_MEX(DEBUG_LEVEL_VERY_PEDANTIC, debug_level, "---Sorted call graph");
       }
-      catch(std::exception& e)
+      catch(boost::exception& e)
+      {
+         std::cerr << "Toposort failed \n";
+         call_graphs_collection->RemoveSelector(src, tgt, STD_SELECTOR);
+         call_graphs_collection->AddSelector(src, tgt, FEEDBACK_SELECTOR);
+         INDENT_DBG_MEX(DEBUG_LEVEL_VERY_PEDANTIC, debug_level, "---Boost exception (TODO better error message checking for not_a_dag)");
+      }catch(std::exception& e)
       {
          call_graphs_collection->RemoveSelector(src, tgt, STD_SELECTOR);
          call_graphs_collection->AddSelector(src, tgt, FEEDBACK_SELECTOR);

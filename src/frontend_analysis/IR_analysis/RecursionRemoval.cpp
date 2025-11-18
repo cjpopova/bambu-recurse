@@ -32,10 +32,9 @@ RecursionRemoval::ComputeFrontendRelationships(const DesignFlowStep::Relationshi
    {
       case(DEPENDENCE_RELATIONSHIP):
       {
-        // CJP TODO FIX ME
          relationships.insert(std::make_pair(BLOCK_FIX, SAME_FUNCTION));
          relationships.insert(std::make_pair(STRING_CST_FIX, WHOLE_APPLICATION));
-         //relationships.insert(std::make_pair(FIX_STRUCTS_PASSED_BY_VALUE, CALLING_FUNCTIONS));
+         relationships.insert(std::make_pair(RECURSION_REMOVAL, CALLING_FUNCTIONS));
          relationships.insert(std::make_pair(REBUILD_INITIALIZATION, CALLING_FUNCTIONS));
          break;
       }
@@ -73,7 +72,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    const auto func_arch = HLSMgr ? HLSMgr->module_arch->GetArchitecture(fname) : nullptr;
    
 
-   bool is_recursive = false;
+   bool is_recursive = false; // look for calls to self
    for(const auto i : AppM->CGetCallGraphManager()->get_called_by(function_id))
    {
       const auto curr_tn = TM->GetTreeNode(i);

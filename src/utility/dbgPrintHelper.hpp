@@ -47,7 +47,7 @@
 #ifndef DBGPRINTHELPER_HPP
 #define DBGPRINTHELPER_HPP
 
-#define NOUTPUT 0
+#define NOUTPUT 5 // CJP: increase printing level to v v pedantic
 
 #include <iostream>
 #include <string>
