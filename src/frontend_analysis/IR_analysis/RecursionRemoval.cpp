@@ -59,6 +59,8 @@ RecursionRemoval::ComputeFrontendRelationships(const DesignFlowStep::Relationshi
 
 DesignFlowStep_Status RecursionRemoval::InternalExec()
 {
+   std::cout << "\n========== RecursionRemoval is running ==========\n"; 
+
    bool changed = false;
    const auto TM = AppM->get_tree_manager();
    const auto tree_man = tree_manipulationRef(new tree_manipulation(TM, parameters, AppM));
@@ -74,8 +76,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    const auto func_arch = HLSMgr ? HLSMgr->module_arch->GetArchitecture(fname) : nullptr;
    
 
-   std::cout << "RecursionRemoval is running\n"; 
-   std::cerr << "RecursionRemoval is running\n"; 
+   //std::cerr << "RecursionRemoval is running\n"; 
 
    bool is_recursive = false; // look for calls to self
    for(const auto i : AppM->CGetCallGraphManager()->get_called_by(function_id))
@@ -88,8 +89,17 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       }
    }
 
+   // DEBUG
+   for(const auto& block : sl->list_of_bloc) {
+      std::cout << "[+] Examining basic block: " << block.first << "\n";
+      for(const auto& stmt : block.second->CGetStmtList()) {
+         std::cout << "   [+] Examining statement: " << stmt->ToString() << "\n";
+      }
+   } 
+
    if (is_recursive)
    {
+      std::cout << "[+] Recursion Removal Function Is Recursive" << std::endl;
       std::cerr << "Is recursive: " 
          + HLSMgr->CGetFunctionBehavior(function_id)->CGetBehavioralHelper()->get_function_name()
          + "\n";
@@ -100,5 +110,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       function_behavior->UpdateBBVersion();
       return DesignFlowStep_Status::SUCCESS;
    }
+
+   std::cout << "========== Recursion Removal Complete ==========\n\n";
    return DesignFlowStep_Status::UNCHANGED;
 }
