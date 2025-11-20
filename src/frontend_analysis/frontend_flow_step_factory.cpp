@@ -248,6 +248,7 @@ DesignFlowStepRef FrontendFlowStepFactory::GenerateFrontendStep(FrontendFlowStep
       case PREDICATE_STATEMENTS:
       case REBUILD_INITIALIZATION:
       case REBUILD_INITIALIZATION2:
+      case RECURSION_REMOVAL:
       case REMOVE_CLOBBER_GA:
       case REMOVE_ENDING_IF:
 #if HAVE_ILP_BUILT
@@ -462,6 +463,7 @@ FrontendFlowStepFactory::CreateApplicationFrontendFlowStep(const FrontendFlowSte
       case PREDICATE_STATEMENTS:
       case REBUILD_INITIALIZATION:
       case REBUILD_INITIALIZATION2:
+      case RECURSION_REMOVAL:
       case REMOVE_CLOBBER_GA:
       case REMOVE_ENDING_IF:
 #if HAVE_ILP_BUILT

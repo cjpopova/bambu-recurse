@@ -127,6 +127,7 @@ BambuFrontendFlow::ComputeFrontendRelationships(const DesignFlowStep::Relationsh
          relationships.insert(std::make_pair(PREDICATE_STATEMENTS, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(REBUILD_INITIALIZATION, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(REBUILD_INITIALIZATION2, WHOLE_APPLICATION));
+         relationships.insert(std::make_pair(RECURSION_REMOVAL, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(REMOVE_CLOBBER_GA, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(SHORT_CIRCUIT_TAF, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(SIMPLE_CODE_MOTION, WHOLE_APPLICATION));

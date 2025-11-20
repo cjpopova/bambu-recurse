@@ -32,7 +32,7 @@ RecursionRemoval::ComputeFrontendRelationships(const DesignFlowStep::Relationshi
    {
       case(DEPENDENCE_RELATIONSHIP):
       {
-         //relationships.insert(std::make_pair(BLOCK_FIX, SAME_FUNCTION));
+         //relationships.insert(std::make_pair(BLOCK_FIX, SAME_FUNCTION)); // it seems like it'd be useful for this to run first, but w/e
          //relationships.insert(std::make_pair(STRING_CST_FIX, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(RECURSION_REMOVAL, CALLING_FUNCTIONS));
          //relationships.insert(std::make_pair(REBUILD_INITIALIZATION, CALLING_FUNCTIONS));
