@@ -115,6 +115,7 @@ compute_implicit_calls::ComputeFrontendRelationships(const DesignFlowStep::Relat
          relationships.insert(std::make_pair(IR_LOWERING, SAME_FUNCTION));
          relationships.insert(std::make_pair(FUNCTION_ANALYSIS, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(FIX_STRUCTS_PASSED_BY_VALUE, SAME_FUNCTION));
+         relationships.insert(std::make_pair(RECURSION_REMOVAL, SAME_FUNCTION));
          relationships.insert(std::make_pair(USE_COUNTING, SAME_FUNCTION));
          break;
       }

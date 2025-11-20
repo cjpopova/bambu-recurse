@@ -935,6 +935,7 @@ Bit_Value::ComputeFrontendRelationships(const DesignFlowStep::RelationshipType r
          relationships.insert(std::make_pair(ESSA, SAME_FUNCTION));
          relationships.insert(std::make_pair(EXTRACT_GIMPLE_COND_OP, SAME_FUNCTION));
          relationships.insert(std::make_pair(FIX_STRUCTS_PASSED_BY_VALUE, SAME_FUNCTION));
+        relationships.insert(std::make_pair(RECURSION_REMOVAL, SAME_FUNCTION));
          relationships.insert(std::make_pair(FUNCTION_CALL_TYPE_CLEANUP, SAME_FUNCTION));
          relationships.insert(std::make_pair(IR_LOWERING, SAME_FUNCTION));
          relationships.insert(std::make_pair(PARM2SSA, SAME_FUNCTION));

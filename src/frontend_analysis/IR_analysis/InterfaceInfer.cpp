@@ -313,6 +313,7 @@ InterfaceInfer::ComputeFrontendRelationships(const DesignFlowStep::RelationshipT
          relationships.insert(std::make_pair(FUNCTION_ANALYSIS, WHOLE_APPLICATION));
          relationships.insert(std::make_pair(IR_LOWERING, ALL_FUNCTIONS));
          relationships.insert(std::make_pair(PARM2SSA, ALL_FUNCTIONS));
+         relationships.insert(std::make_pair(RECURSION_REMOVAL, SAME_FUNCTION));
          relationships.insert(std::make_pair(USE_COUNTING, ALL_FUNCTIONS));
          break;
       }

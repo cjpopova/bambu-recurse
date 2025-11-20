@@ -94,6 +94,7 @@ parm2ssa::ComputeFrontendRelationships(const DesignFlowStep::RelationshipType re
       {
          relationships.insert(std::make_pair(PARM_DECL_TAKEN_ADDRESS, SAME_FUNCTION));
          relationships.insert(std::make_pair(FIX_STRUCTS_PASSED_BY_VALUE, SAME_FUNCTION));
+relationships.insert(std::make_pair(RECURSION_REMOVAL, SAME_FUNCTION));
          break;
       }
       case(INVALIDATION_RELATIONSHIP):

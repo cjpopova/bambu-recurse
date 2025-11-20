@@ -20,6 +20,7 @@ RecursionRemoval::RecursionRemoval(const ParameterConstRef params, const applica
     : FunctionFrontendFlowStep(AM, fun_id, RECURSION_REMOVAL, dfm, params)
 {
    debug_level = parameters->get_class_debug_level(GET_CLASS(*this), DEBUG_LEVEL_NONE);
+   std::cout << "RecursionRemoval constructor\n";
 }
 
 RecursionRemoval::~RecursionRemoval() = default;
@@ -40,7 +41,7 @@ RecursionRemoval::ComputeFrontendRelationships(const DesignFlowStep::Relationshi
       }
       case(PRECEDENCE_RELATIONSHIP):
       {
-         relationships.insert(std::make_pair(INTERFACE_INFER, ALL_FUNCTIONS));
+         //relationships.insert(std::make_pair(INTERFACE_INFER, ALL_FUNCTIONS));
          break;
       }
       case(INVALIDATION_RELATIONSHIP):
