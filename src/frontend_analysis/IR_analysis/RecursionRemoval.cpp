@@ -103,6 +103,32 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       std::cerr << "Is recursive: " 
          + HLSMgr->CGetFunctionBehavior(function_id)->CGetBehavioralHelper()->get_function_name()
          + "\n";
+
+      // Initialize stack for each argument
+      unsigned int param_n = 0;
+      auto p_decl_it = fd->list_of_args.begin();
+      auto p_type_head = ftype->prms;
+      const auto has_param_types = static_cast<bool>(p_type_head);
+      //
+      const auto first_block = sl->list_of_bloc.at(BB_ENTRY);
+
+      for(; p_decl_it != fd->list_of_args.cend(); p_decl_it++, param_n++)
+      {
+         // create the stack // TODO
+         /*const auto gimple_call_memcpy = tree_man->create_gimple_call(memcpy_function, args, function_id, srcp);
+         auto gn = GetPointer<gimple_node>(gimple_call_memcpy);
+
+         first_block->PushFront(gimple_call_memcpy, AppM); // insert the instruction*/
+      }
+
+      // Build for loop to simulate recursion
+      //TODO
+
+      // Rewrite operations around recursive call
+      // TODO
+
+      // Remove recursive calls 
+      // TODO
    }
 
    if(changed)
