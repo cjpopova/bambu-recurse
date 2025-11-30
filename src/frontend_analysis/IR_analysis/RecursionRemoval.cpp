@@ -89,7 +89,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       }
    }
 
-   // DEBUG
+   // DEBUG PRINT IR
    for(const auto& block : sl->list_of_bloc) {
       std::cout << "[+] Examining basic block: " << block.first << "\n";
       for(const auto& stmt : block.second->CGetStmtList()) {
@@ -106,20 +106,30 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
 
       // Initialize stack for each argument
       unsigned int param_n = 0;
+      unsigned int stack_size = 0;
       auto p_decl_it = fd->list_of_args.begin();
       auto p_type_head = ftype->prms;
       const auto has_param_types = static_cast<bool>(p_type_head);
-      //
       const auto first_block = sl->list_of_bloc.at(BB_ENTRY);
+      const auto return_type = tree_helper::GetFunctionReturnType(tn);
 
       for(; p_decl_it != fd->list_of_args.cend(); p_decl_it++, param_n++)
       {
-         // create the stack // TODO
+         const auto p_decl = *p_decl_it;
+         const auto p_type = tree_helper::CGetType(p_decl);
+         std::cout << "[+] Parameter: " << STR(p_decl) << " Type: " << STR(p_type) << " Size: " << tree_helper::AllocatedMemorySize(p_type) << std::endl;
+         stack_size += tree_helper::AllocatedMemorySize(p_type);
+	 
+	 // create the stack // TODO
          /*const auto gimple_call_memcpy = tree_man->create_gimple_call(memcpy_function, args, function_id, srcp);
          auto gn = GetPointer<gimple_node>(gimple_call_memcpy);
 
          first_block->PushFront(gimple_call_memcpy, AppM); // insert the instruction*/
       }
+      stack_size += tree_helper::AllocatedMemorySize(return_type);
+      std::cout << "[+] Number of args: " << param_n << std::endl;
+      std::cout << "[+] Return Type: " << return_type << " Return Type Size: " << tree_helper::AllocatedMemorySize(return_type) << std::endl;
+      std::cout << "[+] Stack Size: " << stack_size << std::endl;
 
       // Build for loop to simulate recursion
       //TODO
