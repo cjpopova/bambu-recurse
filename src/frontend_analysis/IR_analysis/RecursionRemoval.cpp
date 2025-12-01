@@ -92,6 +92,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    }
 
    // DEBUG PRINT IR
+   std::cout << "===== IR BEFORE manipulation" << std::endl;
    for(const auto& block : sl->list_of_bloc) {
       std::cout << "[+] Examining basic block: " << block.first << "\n";
       for(const auto& stmt : block.second->CGetStmtList()) {
@@ -135,6 +136,16 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       std::cerr << "Is recursive: " 
          + HLSMgr->CGetFunctionBehavior(function_id)->CGetBehavioralHelper()->get_function_name()
          + "\n";
+
+      // Add global variable top to denote top of the stack
+      const std::string TOP_var_name = "top_stack_ptr";
+      auto TOP_var_identifier = tree_man->create_identifier_node(TOP_var_name);
+      auto TOP_var_type = tree_man->GetSignedIntegerType();
+      const auto* type_sc = GetPointer<const type_node>(TOP_var_type);
+      auto TOP_var_init = TM->CreateUniqueIntegerCst((integer_cst_t) -1, TOP_var_type);
+      auto global_scpe = tree_man->create_translation_unit_decl();
+      auto TOP_var_decl = tree_man->create_var_decl(TOP_var_identifier, TOP_var_type, global_scpe, type_sc->size, 
+        tree_nodeRef(), TOP_var_init, BUILTIN_SRCP, type_sc->algn, 1);
 
       // Calculate stack frame size for all arguments + active variables
       unsigned int param_n = 0;
@@ -212,6 +223,17 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       function_behavior->UpdateBBVersion();
       return DesignFlowStep_Status::SUCCESS;
    }
+   
+   // DEBUG PRINT IR
+   std::cout << "\n===== IR after manipulation" << std::endl;
+   for(const auto& block : sl->list_of_bloc) {
+      std::cout << "[+] Examining basic block: " << block.first << "\n";
+      for(const auto& stmt : block.second->CGetStmtList()) {
+         std::cout << "   [+] Examining statement: " << stmt->ToString() << "; " << stmt->get_kind_text() << "\n";
+      }
+   } 
+   // END DEBUG
+
 
    std::cout << "========== Recursion Removal Complete ==========\n\n";
    return DesignFlowStep_Status::UNCHANGED;
