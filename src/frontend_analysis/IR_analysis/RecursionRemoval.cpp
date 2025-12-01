@@ -79,13 +79,14 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    //std::cerr << "RecursionRemoval is running\n"; 
 
    bool is_recursive = false; // look for calls to self
+   std::set<tree_nodeConstRef> callerNodes; // set of nodes representing calls to self
    for(const auto i : AppM->CGetCallGraphManager()->get_called_by(function_id))
    {
       const auto curr_tn = TM->GetTreeNode(i);
       const auto fdCalled = GetPointerS<const function_decl>(curr_tn);
       if (fd == fdCalled) {
          is_recursive = true;
-         break;
+         callerNodes.insert(curr_tn);
       }
    }
 
@@ -93,9 +94,10 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    for(const auto& block : sl->list_of_bloc) {
       std::cout << "[+] Examining basic block: " << block.first << "\n";
       for(const auto& stmt : block.second->CGetStmtList()) {
-         std::cout << "   [+] Examining statement: " << stmt->ToString() << "\n";
+         std::cout << "   [+] Examining statement: " << stmt->ToString() << "; " << stmt->get_kind_text() << "\n";
       }
    } 
+   // END DEBUG
 
    if (is_recursive)
    {
@@ -119,12 +121,16 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          const auto p_type = tree_helper::CGetType(p_decl);
          std::cout << "[+] Parameter: " << STR(p_decl) << " Type: " << STR(p_type) << " Size: " << tree_helper::AllocatedMemorySize(p_type) << std::endl;
          stack_size += tree_helper::AllocatedMemorySize(p_type);
-	 
-	 // create the stack // TODO
-         /*const auto gimple_call_memcpy = tree_man->create_gimple_call(memcpy_function, args, function_id, srcp);
-         auto gn = GetPointer<gimple_node>(gimple_call_memcpy);
-
-         first_block->PushFront(gimple_call_memcpy, AppM); // insert the instruction*/
+         
+         // create the stack // TODO
+         auto intTy = tree_man->GetSignedIntegerType();
+         const auto neg1Cst =
+                      TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
+         const auto assignNeg1 =
+               tree_man->CreateGimpleAssign(intTy, tree_nodeRef(), tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
+         
+         first_block->PushFront(assignNeg1, AppM);
+         
       }
       stack_size += tree_helper::AllocatedMemorySize(return_type);
       std::cout << "[+] Number of args: " << param_n << std::endl;
@@ -138,7 +144,13 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // TODO
 
       // Remove recursive calls 
-      // TODO
+      /*for(const auto& block : sl->list_of_bloc)
+      {
+         for(const auto& stmt : block.second->CGetStmtList())
+         {
+            TM->ReplaceTreeNode(stmt, p_decl, new_local_var_decl);
+         }
+      }*/
    }
 
    if(changed)
