@@ -9,6 +9,7 @@
 #include "hls_manager.hpp"
 #include "op_graph.hpp"
 #include "string_manipulation.hpp"
+#include "token_interface.hpp"
 #include "tree_basic_block.hpp"
 #include "tree_helper.hpp"
 #include "tree_manager.hpp"
@@ -94,11 +95,40 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    for(const auto& block : sl->list_of_bloc) {
       std::cout << "[+] Examining basic block: " << block.first << "\n";
       for(const auto& stmt : block.second->CGetStmtList()) {
-         std::cout << "   [+] Examining statement: " << stmt->ToString() << "; " << stmt->get_kind_text() << "\n";
+         std::cout << "   [+] Examining statement: " << stmt->ToString() << "; " << stmt->get_kind_text();
+         if(stmt->get_kind() == gimple_assign_K)
+         {
+            tree_nodeConstRef lhs = GetPointerS<const gimple_assign>(stmt)->op0;
+            const auto type_node = tree_helper::CGetType(lhs);
+            std::cout << " (" << STR(type_node) << " " << type_node->get_kind_text() << ")";
+            
+            // attempt to print out type of StackFrame* from factorial_iterative
+            if (type_node->get_kind() == pointer_type_K)
+            {
+               const auto pt = GetPointerS<const pointer_type>(type_node);
+               auto rec_type_node = pt->ptd; // get pointed-to
+               if (rec_type_node->get_kind() == record_type_K) {
+                  auto rt = GetPointerS<const record_type>(rec_type_node);
+                  if(rt->unql)
+                  {
+                     rt = GetPointerS<const record_type>(rt->unql);
+                  }
+                  for(auto& list_of_fld : rt->list_of_flds)
+                  {
+                     const auto fd = GetPointer<const field_decl>(list_of_fld);
+                     std::cout << "    " << STR(fd) << "\n";
+                  }
+               }
+            }
+         //const auto type_size = tree_helper::SizeAlloc(type_node);
+         //auto type = tree_helper::PrintType(TM, type_node);
+         }
+         std::cout << "\n";
       }
    } 
    // END DEBUG
 
+   // MODIFY RECURSIVE FUNCTIONS
    if (is_recursive)
    {
       std::cout << "[+] Recursion Removal Function Is Recursive" << std::endl;
@@ -106,7 +136,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          + HLSMgr->CGetFunctionBehavior(function_id)->CGetBehavioralHelper()->get_function_name()
          + "\n";
 
-      // Initialize stack for each argument
+      // Calculate stack frame size for all arguments + active variables
       unsigned int param_n = 0;
       unsigned int stack_size = 0;
       auto p_decl_it = fd->list_of_args.begin();
@@ -121,21 +151,45 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          const auto p_type = tree_helper::CGetType(p_decl);
          std::cout << "[+] Parameter: " << STR(p_decl) << " Type: " << STR(p_type) << " Size: " << tree_helper::AllocatedMemorySize(p_type) << std::endl;
          stack_size += tree_helper::AllocatedMemorySize(p_type);
-         
-         // create the stack // TODO
-         auto intTy = tree_man->GetSignedIntegerType();
-         const auto neg1Cst =
-                      TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
-         const auto assignNeg1 =
-               tree_man->CreateGimpleAssign(intTy, tree_nodeRef(), tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
-         
-         first_block->PushFront(assignNeg1, AppM);
-         
       }
       stack_size += tree_helper::AllocatedMemorySize(return_type);
       std::cout << "[+] Number of args: " << param_n << std::endl;
       std::cout << "[+] Return Type: " << return_type << " Return Type Size: " << tree_helper::AllocatedMemorySize(return_type) << std::endl;
       std::cout << "[+] Stack Size: " << stack_size << std::endl;
+
+      // Construct stack frame type // based on tree_nodeRef tree_manipulation::GetBooleanType() const
+      tree_nodeRef frame_type_node;
+
+      tree_nodeRef frame_identifier_node = tree_man->create_identifier_node("_StackFrame");
+      unsigned int frame_identifier_nid = frame_identifier_node->index; 
+      unsigned int type_decl_nid = TM->new_tree_node_id();
+      unsigned int frame_type_nid = TM->new_tree_node_id();
+      const auto size_node = TM->CreateUniqueIntegerCst((integer_cst_t) stack_size, tree_man->GetBitsizeType());
+
+      std::map<TreeVocabularyTokenTypes_TokenEnum, std::string> IR_schema;
+      IR_schema[TOK(TOK_NAME)] = STR(frame_identifier_nid);
+      IR_schema[TOK(TOK_TYPE)] = STR(frame_type_nid);
+      IR_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
+      const auto td = TM->create_tree_node(type_decl_nid, type_decl_K, IR_schema);
+      std::cout << "Created node " + STR(type_decl_nid) + " (type_decl frame)\n";
+
+      IR_schema.clear();
+      IR_schema[TOK(TOK_NAME)] = STR(td->index);
+      IR_schema[TOK(TOK_SIZE)] = STR(size_node->index);
+      IR_schema[TOK(TOK_ALGN)] = STR(ALGN_BOOLEAN); // TODO: what alignment do we use?
+      frame_type_node = TM->create_tree_node(frame_type_nid, record_type_K, IR_schema);
+
+      // Initialize stack frames
+      // maybe use create_var_decl ?
+      auto intTy = tree_man->GetSignedIntegerType();
+      const auto neg1Cst =
+                     TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
+      const auto assignNeg1 =
+            tree_man->CreateGimpleAssign(intTy, tree_nodeRef(), tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
+      
+      first_block->PushFront(assignNeg1, AppM);
+
+      // tree_helper::SizeAlloc(struct_type)
 
       // Build for loop to simulate recursion
       //TODO
