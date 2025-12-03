@@ -15,10 +15,10 @@ RecursionRemoval constructor
 
 [+] Examining basic block: 3
    [+] Examining statement: @35273 (int)  _9100_[33] = (int)  _9099_[32] + 1int ; increment top
-   [+] Examining statement: @35271 top = (int)  _9100_[33]
-   [+] Examining statement: @35290 (sizetype)  _9101_[14] = (sizetype) (int)  _9100_[33]
-   [+] Examining statement: @35286 (sizetype)  _9102_[15] = (sizetype)  _9101_[14] * 8sizetype ; calculate some address???
-   [+] Examining statement: @35281 (StackFrame *)  _9103_[26] = &stack + (sizetype)  _9102_[15]
+   [+] Examining statement: @35271 top = (int)  _9100_[33]                      ; increment top
+   [+] Examining statement: @35290 (sizetype)  _9101_[14] = (sizetype) (int)  _9100_[33]        ; cast top
+   [+] Examining statement: @35286 (sizetype)  _9102_[15] = (sizetype)  _9101_[14] * 8sizetype  ; top * 8
+   [+] Examining statement: @35281 (StackFrame *)  _9103_[26] = &stack + (sizetype)  _9102_[15] ; stack + top * 8 ; address of new stackframe
    [+] Examining statement: @35275 *(StackFrame *)  _9103_[26] = (int)  n_9104_[10](D) ; save n to the stack frame
    [+] Examining statement: @35295 MEM[(struct  *)(StackFrame *)  _9103_[26]) + 4struct  *] = 0int ; save return_value = 0 to the stack frame
    [+] Examining statement: @35296 if ((int)  _9100_[33] != -1int) ; initial is_empty check (duplicated while condition)

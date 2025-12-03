@@ -57,6 +57,32 @@ RecursionRemoval::ComputeFrontendRelationships(const DesignFlowStep::Relationshi
    return relationships;
 }
 
+static const blocRef getFirstBlock(const statement_list *const sl){
+   unsigned int bb_index = BB_ENTRY;
+   const auto entry_block = sl->list_of_bloc.at(BB_ENTRY);
+   const auto succ_blocks = entry_block->list_of_succ;
+   bb_index = *(succ_blocks.begin());
+   return sl->list_of_bloc.at(bb_index);
+}
+
+// Add ty as a field to rec_type
+static void add_fld(const tree_managerRef& TM, const tree_manipulationRef& tree_man,
+      record_type *rec_type, const std::string& fld_name, const tree_nodeConstRef& ty,
+      std::map<TreeVocabularyTokenTypes_TokenEnum, std::string>& IR_schema) {
+   std::cout << "[+] adding field" << "\n";
+   unsigned fld_nid = TM->new_tree_node_id();
+   const auto id_node = tree_man->create_identifier_node(fld_name);
+   IR_schema.clear();
+   //IR_schema[TOK(TOK_NAME)] = STR(id_node);
+   //IR_schema[TOK(TOK_TYPE)] = STR(ty);
+   IR_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
+   auto fld_raw = TM->create_tree_node(fld_nid, field_decl_K, IR_schema);
+   auto fld = GetPointer<field_decl>(fld_raw);
+   fld->name = id_node;
+   fld->type = std::const_pointer_cast<tree_node>(ty);
+   fld->algn = tree_helper::AllocatedMemorySize(ty);
+   rec_type->add_flds(fld_raw);
+}
 
 DesignFlowStep_Status RecursionRemoval::InternalExec()
 {
@@ -75,7 +101,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    THROW_ASSERT(!ftype->varargs_flag, "function " + fname + " is varargs"); // CJP i am not sure we need all these asserts, but W/E
    const auto HLSMgr = GetPointer<HLS_manager>(AppM);
    const auto func_arch = HLSMgr ? HLSMgr->module_arch->GetArchitecture(fname) : nullptr;
-   
 
    //std::cerr << "RecursionRemoval is running\n"; 
 
@@ -153,8 +178,15 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       auto p_decl_it = fd->list_of_args.begin();
       auto p_type_head = ftype->prms;
       const auto has_param_types = static_cast<bool>(p_type_head);
-      const auto first_block = sl->list_of_bloc.at(BB_ENTRY);
-      const auto return_type = tree_helper::GetFunctionReturnType(tn);
+            
+      // create the record (struct) type node
+      std::map<TreeVocabularyTokenTypes_TokenEnum, std::string> IR_schema; // Should this be empty?
+      //IR_schema[TOK(TOK_NAME)] = STR(id_node);
+      //IR_schema[TOK(TOK_TYPE)] = STR(ty);
+      IR_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
+      unsigned rec_nid  = TM->new_tree_node_id();
+      auto rec_node_raw = TM->create_tree_node(rec_nid, record_type_K, IR_schema);
+      auto rec_type = GetPointer<record_type>(rec_node_raw);
 
       for(; p_decl_it != fd->list_of_args.cend(); p_decl_it++, param_n++)
       {
@@ -162,45 +194,30 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          const auto p_type = tree_helper::CGetType(p_decl);
          std::cout << "[+] Parameter: " << STR(p_decl) << " Type: " << STR(p_type) << " Size: " << tree_helper::AllocatedMemorySize(p_type) << std::endl;
          stack_size += tree_helper::AllocatedMemorySize(p_type);
+         add_fld(TM, tree_man, rec_type, STR(p_decl), p_type, IR_schema);
       }
+      auto return_type = tree_helper::GetFunctionReturnType(tn);
+      add_fld(TM, tree_man, rec_type, "return", tree_helper::GetFunctionReturnType(tn), IR_schema);
       stack_size += tree_helper::AllocatedMemorySize(return_type);
       std::cout << "[+] Number of args: " << param_n << std::endl;
       std::cout << "[+] Return Type: " << return_type << " Return Type Size: " << tree_helper::AllocatedMemorySize(return_type) << std::endl;
       std::cout << "[+] Stack Size: " << stack_size << std::endl;
 
-      // Construct stack frame type // based on tree_nodeRef tree_manipulation::GetBooleanType() const
-      tree_nodeRef frame_type_node;
-
-      tree_nodeRef frame_identifier_node = tree_man->create_identifier_node("_StackFrame");
-      unsigned int frame_identifier_nid = frame_identifier_node->index; 
-      unsigned int type_decl_nid = TM->new_tree_node_id();
-      unsigned int frame_type_nid = TM->new_tree_node_id();
-      const auto size_node = TM->CreateUniqueIntegerCst((integer_cst_t) stack_size, tree_man->GetBitsizeType());
-
-      std::map<TreeVocabularyTokenTypes_TokenEnum, std::string> IR_schema;
-      IR_schema[TOK(TOK_NAME)] = STR(frame_identifier_nid);
-      IR_schema[TOK(TOK_TYPE)] = STR(frame_type_nid);
-      IR_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
-      const auto td = TM->create_tree_node(type_decl_nid, type_decl_K, IR_schema);
-      std::cout << "Created node " + STR(type_decl_nid) + " (type_decl frame)\n";
-
-      IR_schema.clear();
-      IR_schema[TOK(TOK_NAME)] = STR(td->index);
-      IR_schema[TOK(TOK_SIZE)] = STR(size_node->index);
-      IR_schema[TOK(TOK_ALGN)] = STR(ALGN_BOOLEAN); // TODO: what alignment do we use?
-      frame_type_node = TM->create_tree_node(frame_type_nid, record_type_K, IR_schema);
-
       // Initialize stack frames
-      // maybe use create_var_decl ?
+      const auto first_block = getFirstBlock(sl);
+      // top  = -1;
       auto intTy = tree_man->GetSignedIntegerType();
+      const auto intTy_node = GetPointerS<const type_node>(intTy);
+      const auto top_var_identifier = tree_man->create_identifier_node("bambu_artificial_top");
+      const auto top_var_decl =
+            tree_man->create_var_decl(top_var_identifier, intTy, tn, intTy_node->size, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, intTy_node->algn, 0, false);
+      
       const auto neg1Cst =
                      TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
       const auto assignNeg1 =
-            tree_man->CreateGimpleAssign(intTy, tree_nodeRef(), tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
-      
-      first_block->PushFront(assignNeg1, AppM);
-
-      // tree_helper::SizeAlloc(struct_type)
+            tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
+      first_block->PushBack(assignNeg1, AppM);
 
       // Build for loop to simulate recursion
       //TODO
