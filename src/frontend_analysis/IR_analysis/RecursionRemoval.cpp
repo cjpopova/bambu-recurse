@@ -163,6 +163,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          + "\n";
 
       // Add global variable top to denote top of the stack
+      /*
       const std::string TOP_var_name = "top_stack_ptr";
       auto TOP_var_identifier = tree_man->create_identifier_node(TOP_var_name);
       auto TOP_var_type = tree_man->GetSignedIntegerType();
@@ -171,6 +172,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       auto global_scpe = tree_man->create_translation_unit_decl();
       auto TOP_var_decl = tree_man->create_var_decl(TOP_var_identifier, TOP_var_type, global_scpe, type_sc->size, 
         tree_nodeRef(), TOP_var_init, BUILTIN_SRCP, type_sc->algn, 1);
+      */
 
       // Calculate stack frame size for all arguments + active variables
       unsigned int param_n = 0;
@@ -220,7 +222,10 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       first_block->PushBack(assignNeg1, AppM);
 
       // Build for loop to simulate recursion
-      //TODO
+      //TODO This Fails
+      const auto boolean_type = tree_man->GetBooleanType();
+      const tree_nodeRef cond = tree_man->create_binary_operation(boolean_type, top_var_identifier, neg1Cst, BUILTIN_SRCP, nop_expr_K);
+      const auto whileCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
 
       // Rewrite operations around recursive call
       // TODO
