@@ -223,6 +223,16 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
 
       // Build for loop to simulate recursion
       //TODO 
+      // Create basic bloc
+      const auto BBN1_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      std::cout << "Newly Added block: " << BBN1_block->number << std::endl;
+      sl->add_bloc(BBN1_block); // THIS FAILS?
+      //const auto last_block = sl->list_of_bloc.rbegin()->last;
+      //BBN1_block->add_pred(last_block->number);
+      //BBN1_block->true_edge = ;
+      //BBN1_block->false_edge = ;
+
+      // Create if top != 1 condition (while condition)
       const auto boolean_type = tree_man->GetBooleanType();
       const tree_nodeRef cond = tree_man->create_binary_operation(boolean_type, top_var_identifier, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto whileCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
