@@ -223,19 +223,36 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       first_block->PushBack(assignNeg1, AppM);
 
       // Build for loop to simulate recursion
-      //TODO 
+      //TODO Not sure if all the basic blocks are linked correctly. BB_start_block may not be necessary if we just
+      // want to use BB1 
+      const auto BB1 = sl->list_of_bloc.at(1); // Get basic block which points to first_block
+   
+      // Create basic block and add to start 
+      const auto BB_start_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      std::cout << "[+] Newly Added block: " << BB_start_block->number << ", for start of IR" << std::endl;
+      sl->add_bloc(BB_start_block);
+
+      // Insert BB_start_block into the top of IR TODO
+      BB_start_block->add_pred(BB1->number);
+      BB_start_block->add_succ(first_block->number);
+      BB1->add_succ(BB_start_block->number);
+      first_block->add_pred(BB_start_block->number);
+
       // Create basic bloc for if statement which check top != 1
       const auto BBN1_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       std::cout << "[+] Newly Added block: " << BBN1_block->number << ", for while loop condition" << std::endl;
       sl->add_bloc(BBN1_block); 
-      BBN1_block->true_edge = first_block->number;
 
       // Create basic bloc for returning value
       const auto BBN2_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       std::cout << "[+] Newly Added block: " << BBN2_block->number << ", for returning value" << std::endl;
       sl->add_bloc(BBN2_block);
       
+      // Insert BBN1 and BBN2 into IR TODO
+      BBN1_block->true_edge = BB_start_block->number;
       BBN1_block->false_edge = BBN2_block->number;
+      BBN1_block->add_succ(BBN2_block->number);
+      BBN2_block->add_pred(BBN1_block->number);
 
       // Create if top != 1 condition (while condition)
       const auto boolean_type = tree_man->GetBooleanType();
