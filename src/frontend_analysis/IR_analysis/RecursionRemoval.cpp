@@ -94,7 +94,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    const auto tn = TM->GetTreeNode(function_id);
    const auto fd = GetPointer<function_decl>(tn);
    THROW_ASSERT(fd && fd->body, "Node " + STR(tn) + "is not a function_decl or has no body");
-   const auto sl = GetPointer<const statement_list>(fd->body);
+   //const auto sl = GetPointer<const statement_list>(fd->body);
+   const auto sl = GetPointer<statement_list>(fd->body);
    THROW_ASSERT(sl, "Body is not a statement_list");
    const auto fname = function_behavior->GetBehavioralHelper()->GetMangledFunctionName();
    const auto ftype = GetPointer<const function_type>(tree_helper::CGetType(tn));
@@ -223,20 +224,24 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
 
       // Build for loop to simulate recursion
       //TODO 
-      // Create basic bloc
+      // Create basic bloc for if statement which check top != 1
       const auto BBN1_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      std::cout << "Newly Added block: " << BBN1_block->number << std::endl;
-      sl->add_bloc(BBN1_block); // THIS FAILS?
-      //const auto last_block = sl->list_of_bloc.rbegin()->last;
-      //BBN1_block->add_pred(last_block->number);
-      //BBN1_block->true_edge = ;
-      //BBN1_block->false_edge = ;
+      std::cout << "[+] Newly Added block: " << BBN1_block->number << ", for while loop condition" << std::endl;
+      sl->add_bloc(BBN1_block); 
+      BBN1_block->true_edge = first_block->number;
+
+      // Create basic bloc for returning value
+      const auto BBN2_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      std::cout << "[+] Newly Added block: " << BBN2_block->number << ", for returning value" << std::endl;
+      sl->add_bloc(BBN2_block);
+      
+      BBN1_block->false_edge = BBN2_block->number;
 
       // Create if top != 1 condition (while condition)
       const auto boolean_type = tree_man->GetBooleanType();
       const tree_nodeRef cond = tree_man->create_binary_operation(boolean_type, top_var_identifier, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto whileCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
-      first_block->PushFront(whileCond, AppM);
+      BBN1_block->PushBack(whileCond, AppM);
 
       // Rewrite operations around recursive call
       // TODO
