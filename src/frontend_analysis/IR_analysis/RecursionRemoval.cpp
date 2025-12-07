@@ -223,8 +223,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       first_block->PushBack(assignNeg1, AppM);
 
       // Build for loop to simulate recursion
-      //TODO Not sure if all the basic blocks are linked correctly. BB_start_block may not be necessary if we just
-      // want to use BB1 
+      //TODO Not sure if all the basic blocks are linked correctly. BB_start_block may not be necessary if we use BB1 
+      /*
       const auto BB1 = sl->list_of_bloc.at(1); // Get basic block which points to first_block
    
       // Create basic block and add to start 
@@ -259,6 +259,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const tree_nodeRef cond = tree_man->create_binary_operation(boolean_type, top_var_identifier, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto whileCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
       BBN1_block->PushBack(whileCond, AppM);
+      */
 
       // Rewrite operations around recursive call
       // TODO
@@ -289,6 +290,9 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    } 
    // END DEBUG
 
+   std::cout << "[+] Write BB Graph" << std::endl;
+   std::string filename = "BBGraph.dot";
+   WriteBBGraphDot(filename);
 
    std::cout << "========== Recursion Removal Complete ==========\n\n";
    return DesignFlowStep_Status::UNCHANGED;
