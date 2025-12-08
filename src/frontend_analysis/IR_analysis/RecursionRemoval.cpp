@@ -222,22 +222,24 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
             tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
       first_block->PushBack(assignNeg1, AppM);
 
-      // Build for loop to simulate recursion
-      //TODO Not sure if all the basic blocks are linked correctly. BB_start_block may not be necessary if we use BB1 
-      /*
-      const auto BB1 = sl->list_of_bloc.at(1); // Get basic block which points to first_block
-   
+      // TODO Build for loop to simulate recursion
+      auto remove_BB = [](std::vector<unsigned int> &v, int b){
+          v.erase(std::remove(v.begin(), v.end(), b), v.end());
+      };
+      // BB0 = entry; BB1 = exit
+      const auto BB_entry = sl->list_of_bloc.at(0); // Get basic block which points to first_block
       // Create basic block and add to start 
       const auto BB_start_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      std::cout << "[+] Newly Added block: " << BB_start_block->number << ", for start of IR" << std::endl;
       sl->add_bloc(BB_start_block);
+      // Insert BB_start_block into the top of IR 
+      BB_start_block->add_pred(BB_entry->number);      // add entry as pred to start_block
+      BB_start_block->add_succ(first_block->number);   // add first_block as succ to start_block
+      BB_entry->add_succ(BB_start_block->number);      // add start_block as succ to entry
+      first_block->add_pred(BB_start_block->number);   // add start_block as pred to first_block
+      remove_BB(first_block->list_of_pred, 0);         // remove entry as pred to first_block
+      remove_BB(BB_entry->list_of_succ, first_block->number); // remove first_block as succ to entry
 
-      // Insert BB_start_block into the top of IR TODO
-      BB_start_block->add_pred(BB1->number);
-      BB_start_block->add_succ(first_block->number);
-      BB1->add_succ(BB_start_block->number);
-      first_block->add_pred(BB_start_block->number);
-
+      /*
       // Create basic bloc for if statement which check top != 1
       const auto BBN1_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       std::cout << "[+] Newly Added block: " << BBN1_block->number << ", for while loop condition" << std::endl;
