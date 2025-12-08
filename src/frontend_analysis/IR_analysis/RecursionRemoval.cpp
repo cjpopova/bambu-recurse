@@ -227,10 +227,28 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
           v.erase(std::remove(v.begin(), v.end(), b), v.end());
       };
       // BB0 = entry; BB1 = exit
-      const auto BB_entry = sl->list_of_bloc.at(0); // Get basic block which points to first_block
-      // Create basic block and add to start 
+      const auto BB_entry = sl->list_of_bloc.at(0); // Get entry block 
+      const auto BB_exit = sl->list_of_bloc.at(1); // Get exit block
+
+      // Create start block
       const auto BB_start_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_start_block);
+     
+      // Create loop condition block
+      const auto BB_loop_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_loop_block); 
+
+      // Create last block
+      const auto BB_last_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_last_block);
+ 
+      // Add top != 1 condition to loop_block
+      const auto boolean_type = tree_man->GetBooleanType();
+      const tree_nodeRef cond = tree_man->create_binary_operation(
+          boolean_type, top_var_identifier, neg1Cst, BUILTIN_SRCP, ne_expr_K);
+      const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
+      BB_loop_block->PushBack(loopCond, AppM);
+
       // Insert BB_start_block into the top of IR 
       BB_start_block->add_pred(BB_entry->number);      // add entry as pred to start_block
       BB_start_block->add_succ(first_block->number);   // add first_block as succ to start_block
@@ -238,30 +256,31 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       first_block->add_pred(BB_start_block->number);   // add start_block as pred to first_block
       remove_BB(first_block->list_of_pred, 0);         // remove entry as pred to first_block
       remove_BB(BB_entry->list_of_succ, first_block->number); // remove first_block as succ to entry
-
-      /*
-      // Create basic bloc for if statement which check top != 1
-      const auto BBN1_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      std::cout << "[+] Newly Added block: " << BBN1_block->number << ", for while loop condition" << std::endl;
-      sl->add_bloc(BBN1_block); 
-
-      // Create basic bloc for returning value
-      const auto BBN2_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      std::cout << "[+] Newly Added block: " << BBN2_block->number << ", for returning value" << std::endl;
-      sl->add_bloc(BBN2_block);
       
-      // Insert BBN1 and BBN2 into IR TODO
-      BBN1_block->true_edge = BB_start_block->number;
-      BBN1_block->false_edge = BBN2_block->number;
-      BBN1_block->add_succ(BBN2_block->number);
-      BBN2_block->add_pred(BBN1_block->number);
+      // Insert loop_block into IR
+      BB_loop_block->true_edge = BB_start_block->number;    // set true edge of loop_block to start_block
+      BB_loop_block->false_edge = BB_last_block->number;    // set false edge of loop_block to last_block
+      BB_loop_block->add_succ(BB_start_block->number);      // add start_block as succ to loop_block (true edge)
+      BB_loop_block->add_succ(BB_last_block->number);       // add last_block as succ to loop_block (false edge)
+      BB_start_block->add_pred(BB_loop_block->number);      // add loop_block as pred to start_block
+      
+      // Find all blocks pointing to exit. All these blocks must now point to loop_block TODO might be incorrect
+      std::vector<unsigned int> to_remove_from_exit = {};
+      for(unsigned int i : BB_exit->list_of_pred) {
+	  if(i == 0 || i == 1) { continue; }
+          const auto BB_i = sl->list_of_bloc.at(i); // Get blocks which pt to exit
+          BB_loop_block->add_pred(i);               // add blocks which pt to exit as pred of loop_block
+	  BB_i->add_succ(BB_loop_block->number);    // add loop_block as succ to blocks which pt to exit
+	  remove_BB(BB_i->list_of_succ, 1);         // remove exit as succ to blocks which pt to exit
+	  to_remove_from_exit.push_back(i);
+      }
+      // Remove all pred from exit
+      for(unsigned int i : to_remove_from_exit) { remove_BB(BB_exit->list_of_pred, i); }
 
-      // Create if top != 1 condition (while condition)
-      const auto boolean_type = tree_man->GetBooleanType();
-      const tree_nodeRef cond = tree_man->create_binary_operation(boolean_type, top_var_identifier, neg1Cst, BUILTIN_SRCP, ne_expr_K);
-      const auto whileCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
-      BBN1_block->PushBack(whileCond, AppM);
-      */
+      BB_last_block->add_pred(BB_loop_block->number);       // add loop_block as pred to last_block
+      BB_last_block->add_succ(1);                           // add exit as succ to last_block
+      BB_exit->add_pred(BB_last_block->number);             // add last_block as pred to exit
+
 
       // Rewrite operations around recursive call
       // TODO
