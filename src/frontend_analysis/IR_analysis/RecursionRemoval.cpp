@@ -218,7 +218,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       
       const auto neg1Cst =
                      TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
-      const auto assignNeg1 =
+      const auto assignNeg1 = // Use decl over identifier for top_var ?
             tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
       first_block->PushBack(assignNeg1, AppM);
 
@@ -245,7 +245,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // Add top != 1 condition to loop_block
       const auto boolean_type = tree_man->GetBooleanType();
       const tree_nodeRef cond = tree_man->create_binary_operation(
-          boolean_type, top_var_identifier, neg1Cst, BUILTIN_SRCP, ne_expr_K);
+          boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
       BB_loop_block->PushBack(loopCond, AppM);
 
