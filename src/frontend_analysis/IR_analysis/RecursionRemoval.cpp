@@ -265,22 +265,33 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_start_block->add_pred(BB_loop_block->number);      // add loop_block as pred to start_block
       
       // Find all blocks pointing to exit. All these blocks must now point to loop_block TODO might be incorrect
-      std::vector<unsigned int> to_remove_from_exit = {};
-      for(unsigned int i : BB_exit->list_of_pred) {
+      for(auto& block : sl->list_of_bloc) {
+          int i = block.first;
 	  if(i == 0 || i == 1) { continue; }
           const auto BB_i = sl->list_of_bloc.at(i); // Get blocks which pt to exit
+          if(std::find(BB_i->list_of_succ.begin(), BB_i->list_of_succ.end(), 1) == BB_i->list_of_succ.end()) {
+              continue;
+          }
+	  remove_BB(BB_i->list_of_succ, 1);         // remove exit as succ to blocks which pt to exit
+          remove_BB(BB_exit->list_of_pred, i);      // remove blocks which to pt to exit as pred of exit
           BB_loop_block->add_pred(i);               // add blocks which pt to exit as pred of loop_block
 	  BB_i->add_succ(BB_loop_block->number);    // add loop_block as succ to blocks which pt to exit
-	  remove_BB(BB_i->list_of_succ, 1);         // remove exit as succ to blocks which pt to exit
-	  to_remove_from_exit.push_back(i);
       }
-      // Remove all pred from exit
-      for(unsigned int i : to_remove_from_exit) { remove_BB(BB_exit->list_of_pred, i); }
 
       BB_last_block->add_pred(BB_loop_block->number);       // add loop_block as pred to last_block
       BB_last_block->add_succ(1);                           // add exit as succ to last_block
       BB_exit->add_pred(BB_last_block->number);             // add last_block as pred to exit
 
+      //DEBUG
+      std::cout << "===== Dump all block's pred & succ =====" << std::endl;
+      for(auto &block : sl->list_of_bloc) {
+          const auto b = sl->list_of_bloc.at(block.first);
+	  std::cout << "\n[+] block: " << block.first; 
+          std::cout << "\n  [+] succs: ";
+          for (auto s : b->list_of_succ) { std::cout << " " << s; }
+          std::cout << "\n  [+] preds: ";
+          for (auto p : b->list_of_pred) { std::cout << " " << p; }
+      }
 
       // Rewrite operations around recursive call
       // TODO
@@ -310,8 +321,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       }
    } 
    // END DEBUG
-
-   std::cout << "[+] Write BB Graph" << std::endl;
    std::string filename = "BBGraph.dot";
    WriteBBGraphDot(filename);
 
