@@ -208,20 +208,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
 
       // Initialize stack frames
       const auto first_block = getFirstBlock(sl);
-      // top  = -1;
-      auto intTy = tree_man->GetSignedIntegerType();
-      const auto intTy_node = GetPointerS<const type_node>(intTy);
-      const auto top_var_identifier = tree_man->create_identifier_node("bambu_artificial_top");
-      const auto top_var_decl =
-            tree_man->create_var_decl(top_var_identifier, intTy, tn, intTy_node->size, tree_nodeRef(),
-                                    tree_nodeRef(), BUILTIN_SRCP, intTy_node->algn, 0, false);
       
-      const auto neg1Cst =
-                     TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
-      const auto assignNeg1 = // Use decl over identifier for top_var ?
-            tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
-      first_block->PushBack(assignNeg1, AppM);
-
       // TODO Build for loop to simulate recursion
       auto remove_BB = [](std::vector<unsigned int> &v, int b){
           v.erase(std::remove(v.begin(), v.end(), b), v.end());
@@ -258,11 +245,11 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       remove_BB(BB_entry->list_of_succ, first_block->number); // remove first_block as succ to entry
       
       // Insert loop_block into IR
-      BB_loop_block->true_edge = BB_start_block->number;    // set true edge of loop_block to start_block
+      BB_loop_block->true_edge = first_block->number;    // set true edge of loop_block to start_block
       BB_loop_block->false_edge = BB_last_block->number;    // set false edge of loop_block to last_block
       BB_loop_block->add_succ(BB_start_block->number);      // add start_block as succ to loop_block (true edge)
       BB_loop_block->add_succ(BB_last_block->number);       // add last_block as succ to loop_block (false edge)
-      BB_start_block->add_pred(BB_loop_block->number);      // add loop_block as pred to start_block
+      first_block->add_pred(BB_loop_block->number);      // add loop_block as pred to start_block
       
       // Find all blocks pointing to exit. All these blocks must now point to loop_block TODO might be incorrect
       for(auto& block : sl->list_of_bloc) {
@@ -272,15 +259,39 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
           if(std::find(BB_i->list_of_succ.begin(), BB_i->list_of_succ.end(), 1) == BB_i->list_of_succ.end()) {
               continue;
           }
-	  remove_BB(BB_i->list_of_succ, 1);         // remove exit as succ to blocks which pt to exit
-          remove_BB(BB_exit->list_of_pred, i);      // remove blocks which to pt to exit as pred of exit
-          BB_loop_block->add_pred(i);               // add blocks which pt to exit as pred of loop_block
-	  BB_i->add_succ(BB_loop_block->number);    // add loop_block as succ to blocks which pt to exit
+	      remove_BB(BB_i->list_of_succ, 1);         // remove exit as succ to blocks which pt to exit
+         remove_BB(BB_exit->list_of_pred, i);      // remove blocks which to pt to exit as pred of exit
+         BB_loop_block->add_pred(i);               // add blocks which pt to exit as pred of loop_block
+	      BB_i->add_succ(BB_loop_block->number);    // add loop_block as succ to blocks which pt to exit
       }
 
       BB_last_block->add_pred(BB_loop_block->number);       // add loop_block as pred to last_block
       BB_last_block->add_succ(1);                           // add exit as succ to last_block
       BB_exit->add_pred(BB_last_block->number);             // add last_block as pred to exit
+
+      ///////////////////////////////////////////////////// Insert instructions
+      // top  = -1;
+      auto intTy = tree_man->GetSignedIntegerType();
+      const auto intTy_node = GetPointerS<const type_node>(intTy);
+      const auto top_var_identifier = tree_man->create_identifier_node("bambu_artificial_top");
+      const auto top_var_decl =
+            tree_man->create_var_decl(top_var_identifier, intTy, tn, intTy_node->size, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, intTy_node->algn, 0, false);
+      
+      const auto neg1Cst =
+                     TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
+      const auto assignNeg1 = // Use decl over identifier for top_var ?
+            tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
+      BB_start_block->PushBack(assignNeg1, AppM);
+
+      // TODO: add to BB_start_block: initialize first stack frame with n=n, return_value=0
+
+      // TODO: analysis on existing code: operation on recursive result (n * factorial_result), operation on recursive argument (n-1), base case (result=1)
+      // we will start by saving the placeholders for factorial & will do the real analysis later
+
+      // TODO: insert basic blocks & instructions for base case
+
+      // TODO: insert recursive case
 
       //DEBUG
       std::cout << "===== Dump all block's pred & succ =====" << std::endl;
@@ -304,6 +315,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
             TM->ReplaceTreeNode(stmt, p_decl, new_local_var_decl);
          }
       }*/
+     changed = true;
    }
 
    if(changed)
