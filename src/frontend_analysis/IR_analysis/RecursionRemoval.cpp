@@ -206,10 +206,9 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       std::cout << "[+] Return Type: " << return_type << " Return Type Size: " << tree_helper::AllocatedMemorySize(return_type) << std::endl;
       std::cout << "[+] Stack Size: " << stack_size << std::endl;
 
-      // Initialize stack frames
-      const auto first_block = getFirstBlock(sl);
-      
       // TODO Build for loop to simulate recursion
+      std::cout << "[+] Modify basic block to simulate recursion" << std::endl;
+      const auto first_block = getFirstBlock(sl);
       auto remove_BB = [](std::vector<unsigned int> &v, int b){
           v.erase(std::remove(v.begin(), v.end(), b), v.end());
       };
@@ -228,13 +227,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // Create last block
       const auto BB_last_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_last_block);
- 
-      // Add top != 1 condition to loop_block
-      const auto boolean_type = tree_man->GetBooleanType();
-      const tree_nodeRef cond = tree_man->create_binary_operation(
-          boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
-      const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
-      BB_loop_block->PushBack(loopCond, AppM);
 
       // Insert BB_start_block into the top of IR 
       BB_start_block->add_pred(BB_entry->number);      // add entry as pred to start_block
@@ -278,12 +270,18 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
             tree_man->create_var_decl(top_var_identifier, intTy, tn, intTy_node->size, tree_nodeRef(),
                                     tree_nodeRef(), BUILTIN_SRCP, intTy_node->algn, 0, false);
       
-      const auto neg1Cst =
-                     TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
+      const auto neg1Cst = TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
       const auto assignNeg1 = // Use decl over identifier for top_var ?
             tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
       BB_start_block->PushBack(assignNeg1, AppM);
 
+      // Add top != 1 condition to loop_block
+      const auto boolean_type = tree_man->GetBooleanType();
+      const tree_nodeRef cond = tree_man->create_binary_operation(
+          boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
+      const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
+      BB_loop_block->PushBack(loopCond, AppM);
+      
       // TODO: add to BB_start_block: initialize first stack frame with n=n, return_value=0
 
       // TODO: analysis on existing code: operation on recursive result (n * factorial_result), operation on recursive argument (n-1), base case (result=1)
@@ -294,7 +292,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // TODO: insert recursive case
 
       //DEBUG
-      std::cout << "===== Dump all block's pred & succ =====" << std::endl;
+      /*std::cout << "===== Dump all block's pred & succ =====" << std::endl;
       for(auto &block : sl->list_of_bloc) {
           const auto b = sl->list_of_bloc.at(block.first);
 	  std::cout << "\n[+] block: " << block.first; 
@@ -302,7 +300,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
           for (auto s : b->list_of_succ) { std::cout << " " << s; }
           std::cout << "\n  [+] preds: ";
           for (auto p : b->list_of_pred) { std::cout << " " << p; }
-      }
+      }*/
 
       // Rewrite operations around recursive call
       // TODO
@@ -318,12 +316,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
      changed = true;
    }
 
-   if(changed)
-   {
-      function_behavior->UpdateBBVersion();
-      return DesignFlowStep_Status::SUCCESS;
-   }
-   
    // DEBUG PRINT IR
    std::cout << "\n===== IR after manipulation" << std::endl;
    for(const auto& block : sl->list_of_bloc) {
@@ -333,9 +325,17 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       }
    } 
    // END DEBUG
+   std::cout << "[+] Write Basic Block Graph" << std::endl;
    std::string filename = "BBGraph.dot";
    WriteBBGraphDot(filename);
 
    std::cout << "========== Recursion Removal Complete ==========\n\n";
+
+   if(changed)
+   {
+      function_behavior->UpdateBBVersion();
+      return DesignFlowStep_Status::SUCCESS;
+   }
+   
    return DesignFlowStep_Status::UNCHANGED;
 }

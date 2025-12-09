@@ -1,12 +1,12 @@
 digraph G {
 0[color=blue,shape=Msquare, label="ENTRY"];
 1[color=blue,shape=Msquare, label="EXIT"];
-2[shape=box, label="BB2 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35171 -> local_9080 = (int)(a + b);\l35230 -> _9091 = -1;\l35172 -> if (a == (0))\l"];
+2[shape=box, label="BB2 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35171 -> local_9080 = (int)(a + b);\l35172 -> if (a == (0))\l"];
 3[shape=box, label="BB3 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\l35184 -> /* _9081 = gimple_phi(<_9082, BB5>, <b, BB2>) */\l35185 -> return _9081;\l"];
 4[shape=box, label="BB4 - GCCLI: 1 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\l35202 -> /* a_9085 = gimple_phi(<a, BB2>, <_9087, BB4>) */\l35203 -> /* local_9088 = gimple_phi(<local_9080, BB2>, <local_9089, BB4>) */\l35198 -> _9087 = (int)(a_9085 + (-1));\l35192 -> x_9090 = ff(_9087, local_9088);\l35205 -> local_9089 = (int)(_9087 + x_9090);\l35209 -> if (_9087 == (0))\l"];
 5[shape=box, label="BB5 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35188 -> _9082 = (int)(a + x_9090);\l"];
-6[shape=box, label="BB6 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0"];
-7[shape=box, label="BB7 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35232 -> if (bambu_artificial_top != (-1))\l"];
+6[shape=box, label="BB6 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35229 -> _9091 = -1;\l"];
+7[shape=box, label="BB7 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35231 -> if (bambu_artificial_top != (-1))\l"];
 8[shape=box, label="BB8 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0"];
 0->6 [fontcolor=blue, color=red3];
 1->1 [fontcolor=blue, color=red3];
