@@ -125,11 +125,10 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          std::cout << "   [+] Examining statement: " << stmt->ToString() << "; " << stmt->get_kind_text();
          if(stmt->get_kind() == gimple_assign_K)
          {
-            tree_nodeConstRef lhs = GetPointerS<const gimple_assign>(stmt)->op0;
+            // attempt to print out type of StackFrame* from factorial_iterative
+            /*tree_nodeConstRef lhs = GetPointerS<const gimple_assign>(stmt)->op0;
             const auto type_node = tree_helper::CGetType(lhs);
             std::cout << " (" << STR(type_node) << " " << type_node->get_kind_text() << ")";
-            
-            // attempt to print out type of StackFrame* from factorial_iterative
             if (type_node->get_kind() == pointer_type_K)
             {
                const auto pt = GetPointerS<const pointer_type>(type_node);
@@ -146,7 +145,24 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
                      std::cout << "    " << STR(fd) << "\n";
                   }
                }
-            }
+            }*/
+
+            // attempt to get array type from MLIR's fib_iterative
+            /*auto assign = GetPointerS<const gimple_assign>(stmt);
+            tree_nodeConstRef lhs = assign->op0;
+            tree_nodeConstRef rhs = assign->op1;
+            const auto lhs_type_node = tree_helper::CGetType(lhs);
+            const auto rhs_type_node = tree_helper::CGetType(rhs);
+            std::cout << " (" << STR(lhs->get_kind_text()) << " = " << STR(rhs->get_kind_text()) << ")";
+            //std::cout << " (" << STR(lhs_type_node) << " " << lhs_type_node->get_kind_text() << " = " << STR(rhs_type_node) << " " << rhs_type_node->get_kind_text() << ")";
+            if (lhs->get_kind() == array_ref_K)
+            {
+               const auto arr_ref = GetPointerS<const array_ref>(lhs_type_node);
+               const auto arr = arr_ref->op0;
+               std::cout << "\t" << (arr->get_kind_text()) <"\n";
+            }*/
+
+           
          //const auto type_size = tree_helper::SizeAlloc(type_node);
          //auto type = tree_helper::PrintType(TM, type_node);
          }
@@ -207,6 +223,27 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       std::cout << "[+] Number of args: " << param_n << std::endl;
       std::cout << "[+] Return Type: " << return_type << " Return Type Size: " << tree_helper::AllocatedMemorySize(return_type) << std::endl;
       std::cout << "[+] Stack Size: " << stack_size << std::endl;
+
+      IR_schema.clear();
+      IR_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
+      unsigned array_nid  = TM->new_tree_node_id();
+      auto array_node_raw = TM->create_tree_node(array_nid, array_type_K, IR_schema);
+      auto array_ty = GetPointer<array_type>(array_node_raw);
+      array_ty->elts = tree_man->GetSignedIntegerType(); //rec_node_raw; // set element type to StackFrame record type (TODO: currently set to integer, so you'd need to change the algn below too)
+      // Set size to 512
+      IR_schema.clear();
+      IR_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
+      unsigned domn_nid = TM->new_tree_node_id();
+      auto domn_node_raw = TM->create_tree_node(domn_nid, integer_type_K, IR_schema);
+      auto domn_type = GetPointer<integer_type>(domn_node_raw);
+      domn_type->min = TM->CreateUniqueIntegerCst(0, tree_man->GetSignedIntegerType());
+      domn_type->max = TM->CreateUniqueIntegerCst(512, tree_man->GetSignedIntegerType());
+      array_ty->domn = domn_node_raw;
+      // create declaration
+      const auto stack_var_identifier = tree_man->create_identifier_node("bambu_artificial_stack");
+      const auto stack_var_decl =
+            tree_man->create_var_decl(stack_var_identifier, array_node_raw, tn, domn_node_raw, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
 
       // TODO Build for loop to simulate recursion
       std::cout << "[+] Modify basic block to simulate recursion" << std::endl;
@@ -276,6 +313,21 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto assignNeg1 = // Use decl over identifier for top_var ?
             tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
       BB_start_block->PushBack(assignNeg1, AppM);
+
+      
+      // initialize the stack : stack[0] = 0;
+      const auto elem_type = tree_man->GetSignedIntegerType(); // tree_helper::CGetElements(tree_helper::CGetType(array_node_raw)); // element type of array_node_ref
+      const auto c0 = TM->CreateUniqueIntegerCst((integer_cst_t)0, elem_type);
+      const auto idx0 = TM->CreateUniqueIntegerCst((integer_cst_t)0, tree_man->GetSignedIntegerType());
+      std::map<TreeVocabularyTokenTypes_TokenEnum, std::string> idx_schema;
+      idx_schema[TOK(TOK_OP0)] = STR(stack_var_decl->index);
+      idx_schema[TOK(TOK_OP1)] = STR(idx0->index);      
+      idx_schema[TOK(TOK_TYPE)] = STR(elem_type->index);
+      idx_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
+      auto elem_nid = TM->new_tree_node_id();
+      auto arr_elem = TM->create_tree_node(elem_nid, array_ref_K, idx_schema);
+      auto assignArr0 = tree_man->create_gimple_modify_stmt(arr_elem, c0, function_id, BUILTIN_SRCP);
+      BB_start_block->PushBack(assignArr0, AppM);
 
       // Add top != 1 condition to loop_block
       const auto boolean_type = tree_man->GetBooleanType();
