@@ -158,6 +158,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    // MODIFY RECURSIVE FUNCTIONS
    if (is_recursive)
    {
+      std::string filename = "BBGraph_Before.dot";
+      WriteBBGraphDot(filename);
       std::cout << "[+] Recursion Removal Function Is Recursive" << std::endl;
       std::cerr << "Is recursive: " 
          + HLSMgr->CGetFunctionBehavior(function_id)->CGetBehavioralHelper()->get_function_name()
@@ -325,8 +327,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       }
    } 
    // END DEBUG
-   std::cout << "[+] Write Basic Block Graph" << std::endl;
-   std::string filename = "BBGraph.dot";
+   std::string filename = "BBGraph_After.dot";
    WriteBBGraphDot(filename);
 
    std::cout << "========== Recursion Removal Complete ==========\n\n";
