@@ -1,0 +1,14 @@
+digraph G {
+0[color=blue,shape=Msquare, label="ENTRY"];
+1[color=blue,shape=Msquare, label="EXIT"];
+2[shape=box, label="BB2 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35198 -> if (n <= (1))\l"];
+3[shape=box, label="BB3 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\n35204 -> _9080 = (int)(n + (-1));\l35205 -> a_9081 = weird(_9080);\l35206 -> _9082 = a_9081 * a_9081;\l35207 -> _9083 = (int)(_9082 + n);\l"];
+4[shape=box, label="BB4 - GCCLI: 0 - HPL: 0 - Cer: 0 - Loop 0 - Executions: 0\l35220 -> /* _9084 = gimple_phi(<_9083, BB3>, <n, BB2>) */\l35221 -> return _9084;\l"];
+0->2 [fontcolor=blue, color=red3];
+1->1 [fontcolor=blue, color=red3];
+2->4 [fontcolor=blue, color=red3];
+2->3 [fontcolor=blue, color=red3];
+3->4 [fontcolor=blue, color=red3];
+4->1 [fontcolor=blue, color=red3];
+0->1 [fontcolor=blue, color=red3];
+}
