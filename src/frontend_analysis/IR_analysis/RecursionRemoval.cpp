@@ -84,6 +84,37 @@ static void add_fld(const tree_managerRef& TM, const tree_manipulationRef& tree_
    rec_type->add_flds(fld_raw);
 }
 
+static void identifyRecursivePatterns(
+   const application_managerRef AppM, function_decl *const fd, const statement_list *const sl) {
+   std::vector<std::pair<unsigned int, tree_nodeConstRef>> call_sites; // (bb_index, stmt)
+   std::cout << "[+] Starting identifyRecursivePatterns\n ";
+   for (const auto &bb_pair : sl->list_of_bloc) {              // Scan over blocks
+      const unsigned int bb_idx = bb_pair.first;
+      const auto bb = bb_pair.second;
+      for (const auto &stmt : bb->CGetStmtList()) {            // Scan over block's statements
+         // Assuming that we're looking for gimple_assign statements whose op1 is call_expr
+         if (stmt->get_kind() != gimple_assign_K) continue;
+         const auto op1_node =  GetPointer<gimple_assign>(stmt)->op1;
+         if (op1_node->get_kind() != call_expr_K) continue;
+         const auto call = GetPointer<call_expr>(op1_node);
+         const auto fn_node = call->fn;
+         if(fn_node->get_kind() != addr_expr_K) continue; 
+         const auto ae = GetPointerS<const addr_expr>(fn_node);
+         if (ae->op->get_kind() != function_decl_K) continue;
+         const auto local_fd = GetPointerS<const function_decl>(ae->op);
+         if (local_fd != fd) continue;                // not a recursive call
+         call_sites.emplace_back(bb_idx, stmt);
+      }
+   }
+
+   // Report found call sites
+   for (auto &cs : call_sites) {
+      std::cout << "  [+] Found call in BB " << cs.first
+                  << " stmt: " << cs.second->ToString() << "\n";
+   }
+
+}
+
 DesignFlowStep_Status RecursionRemoval::InternalExec()
 {
    std::cout << "\n========== RecursionRemoval is running ==========\n"; 
@@ -116,6 +147,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          callerNodes.insert(curr_tn);
       }
    }
+
+   identifyRecursivePatterns(AppM, fd, sl);
 
    // DEBUG PRINT IR
    std::cout << "===== IR BEFORE manipulation" << std::endl;
