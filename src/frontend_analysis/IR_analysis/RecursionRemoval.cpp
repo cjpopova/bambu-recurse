@@ -84,10 +84,9 @@ static void add_fld(const tree_managerRef& TM, const tree_manipulationRef& tree_
    rec_type->add_flds(fld_raw);
 }
 
-static void identifyRecursivePatterns(
+static void identifyRecursivePatterns(std::vector<std::pair<unsigned int, tree_nodeConstRef>> &call_sites, // (bb_index, stmt)
    const application_managerRef AppM, function_decl *const fd, const statement_list *const sl) {
-   std::vector<std::pair<unsigned int, tree_nodeConstRef>> call_sites; // (bb_index, stmt)
-   std::cout << "[+] Starting identifyRecursivePatterns\n ";
+   //std::cout << "[+] Starting identifyRecursivePatterns\n ";
    for (const auto &bb_pair : sl->list_of_bloc) {              // Scan over blocks
       const unsigned int bb_idx = bb_pair.first;
       const auto bb = bb_pair.second;
@@ -108,11 +107,39 @@ static void identifyRecursivePatterns(
    }
 
    // Report found call sites
-   for (auto &cs : call_sites) {
-      std::cout << "  [+] Found call in BB " << cs.first
-                  << " stmt: " << cs.second->ToString() << "\n";
-   }
+   /*for (auto &cs : call_sites) {
+      std::cout << "  [+] Found call in BB " << cs.first << " stmt: " << cs.second->ToString() << "\n";
+   }*/
+}
 
+
+static void analyzeRecursivePatterns(std::vector<std::pair<unsigned int, tree_nodeConstRef>> &call_sites) {
+   for (const auto &cs : call_sites) {
+      const auto stmt_node = GetPointerS< const gimple_assign>(cs.second);
+      // recursive result - we need to analyze what WILL BE done to this
+      const auto op0_node = stmt_node->op0;
+      std::cout << "  [+] Recursive result: " << op0_node->ToString() << " | " << op0_node->get_kind_text() << "\n";
+      const auto sa = GetPointer<ssa_name>(op0_node);
+      for(const auto& stmt_use : sa->CGetUseStmts()) // TODO: why aren't we getting any uses out of this?
+      {
+         const auto use = stmt_use.first;
+         std::cout << "    [+] Recursive result uses: " << use->ToString() << " | " << use->get_kind_text() << "\n";
+      }
+
+      // argument: we need to analyze what WAS done to this
+      const auto ce = GetPointer<call_expr>(stmt_node->op1);
+      for(auto& arg : ce->args) //std::vector<tree_nodeRef> args = ce->args;
+      {
+         const auto sa = GetPointer<ssa_name>(arg);
+         const auto def_stmt = sa->CGetDefStmt();
+         std::cout << "  [+] Recursive argument: " << arg->ToString() << " | " << arg->get_kind_text() << "\n";
+         std::cout << "      Def stmt: " << def_stmt->ToString() << " | " << def_stmt->get_kind_text() <<"\n";
+
+         // we need to work all the way back to the argument (eg n_9083) but we could assume we need to traverse only 1 operation back for now
+         
+         // TODO: ReplaceTreeNode
+      }
+   }
 }
 
 DesignFlowStep_Status RecursionRemoval::InternalExec()
@@ -148,7 +175,9 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       }
    }
 
-   identifyRecursivePatterns(AppM, fd, sl);
+   std::vector<std::pair<unsigned int, tree_nodeConstRef>> call_sites; // (bb_index, stmt)
+   identifyRecursivePatterns(call_sites, AppM, fd, sl);
+   analyzeRecursivePatterns(call_sites);
 
    // DEBUG PRINT IR
    std::cout << "===== IR BEFORE manipulation" << std::endl;
@@ -186,7 +215,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
             tree_nodeConstRef rhs = assign->op1;
             const auto lhs_type_node = tree_helper::CGetType(lhs);
             const auto rhs_type_node = tree_helper::CGetType(rhs);
-            std::cout << " (" << STR(lhs->get_kind_text()) << " = " << STR(rhs->get_kind_text()) << ")";
+         std::cout << " (" << STR(lhs->get_kind_text()) << " = " << STR(rhs->get_kind_text()) << ")";
             //std::cout << " (" << STR(lhs_type_node) << " " << lhs_type_node->get_kind_text() << " = " << STR(rhs_type_node) << " " << rhs_type_node->get_kind_text() << ")";
             if (lhs->get_kind() == array_ref_K)
             {
@@ -194,6 +223,16 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
                const auto arr = arr_ref->op0;
                std::cout << "\t" << (arr->get_kind_text()) <"\n";
             }*/
+
+            // print out use statements of op0
+            tree_nodeConstRef op0_node = GetPointerS<const gimple_assign>(stmt)->op0;
+            const auto sa = GetPointerS<const ssa_name>(op0_node);
+            if (sa->CGetUseStmts().empty()) std::cout << " (No uses)";
+            for(const auto& stmt_use : sa->CGetUseStmts()) // TODO: why aren't we getting any uses out of this? same pattern as fanout op internal exec 
+            {
+               const auto use = stmt_use.first;
+               std::cout << "\n    [+] use: " << use->ToString() << " | " << use->get_kind_text();
+            }
 
            
          //const auto type_size = tree_helper::SizeAlloc(type_node);
