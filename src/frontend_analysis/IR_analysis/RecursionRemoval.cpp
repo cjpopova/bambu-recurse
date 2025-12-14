@@ -1,4 +1,7 @@
 #include "RecursionRemoval.hpp"
+#include "design_flow_graph.hpp"
+#include "design_flow_manager.hpp"
+#include "sdc_scheduling.hpp"
 
 #include "Parameter.hpp"
 #include "application_manager.hpp"
@@ -113,6 +116,18 @@ static void identifyRecursivePatterns(
                   << " stmt: " << cs.second->ToString() << "\n";
    }
 
+}
+
+void fix_sdc_motion(DesignFlowManagerConstRef design_flow_manager, unsigned int function_id,
+    tree_nodeRef removedStmt) {
+    const auto design_flow_graph = design_flow_manager->CGetDesignFlowGraph();
+    const auto sdc_scheduling_step = design_flow_manager->GetDesignFlowStep(HLSFunctionStep::ComputeSignature(
+        HLSFlowStep_Type::SDC_SCHEDULING, HLSFlowStepSpecializationConstRef(), function_id));
+    if(sdc_scheduling_step != DesignFlowGraph::null_vertex()) {
+        const auto sdc_scheduling = GetPointer<SDCScheduling>(design_flow_graph->CGetNodeInfo(sdc_scheduling_step)->design_flow_step);
+        const auto removed_index = removedStmt->index;
+        sdc_scheduling->movements_list.remove_if([&](const std::vector<unsigned int>& mv) { return mv[0] == removed_index; });
+    }
 }
 
 DesignFlowStep_Status RecursionRemoval::InternalExec()
@@ -288,6 +303,36 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto BB_entry = sl->list_of_bloc.at(0); // Get entry block 
       const auto BB_exit = sl->list_of_bloc.at(1); // Get exit block
 
+      // Remove all existing statements & blocks
+      std::cout << "[+] Remove all statements" << std::endl;
+      for(auto & block : sl->list_of_bloc) {
+          block.second->list_of_pred.clear();
+          block.second->list_of_succ.clear();
+          int i = block.first;
+          if(i == 0 || i == 1) { continue; }
+	  // Copy statements first
+          std::vector<tree_nodeRef> stmts;
+          for (const auto& s : block.second->CGetStmtList()) { stmts.push_back(s); }
+          std::vector<tree_nodeRef> phis;
+          for (const auto& p : block.second->CGetPhiList()) { phis.push_back(p); }
+          for(auto& stmt : stmts) {
+              block.second->RemoveStmt(stmt, AppM);
+              fix_sdc_motion(design_flow_manager.lock(), function_id, stmt);
+          }
+          for(auto& phi : phis) {
+              block.second->RemovePhi(phi);
+          }
+      }
+      std::cout << "[+] Remove all basic blocks" << std::endl;
+      for(auto it = sl->list_of_bloc.begin(); it != sl->list_of_bloc.end();) {
+          if(it->first != 0 && it->first != 1) { it = sl->list_of_bloc.erase(it); }
+          else { it++; }
+      }
+      BB_entry->add_succ(BB_exit->number);
+      BB_exit->add_pred(BB_entry->number);
+      BB_exit->add_pred(BB_exit->number);
+
+      /*
       // Create start block
       const auto BB_start_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_start_block);
@@ -332,8 +377,10 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_last_block->add_pred(BB_loop_block->number);       // add loop_block as pred to last_block
       BB_last_block->add_succ(1);                           // add exit as succ to last_block
       BB_exit->add_pred(BB_last_block->number);             // add last_block as pred to exit
+      */
 
       ///////////////////////////////////////////////////// Insert instructions
+      /*
       // top  = -1;
       auto intTy = tree_man->GetSignedIntegerType();
       const auto intTy_node = GetPointerS<const type_node>(intTy);
@@ -346,7 +393,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto assignNeg1 = // Use decl over identifier for top_var ?
             tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
       BB_start_block->PushBack(assignNeg1, AppM);
-
+      
       
       // initialize the stack : stack[0] = 0;
       const auto elem_type = tree_man->GetSignedIntegerType(); // tree_helper::CGetElements(tree_helper::CGetType(array_node_raw)); // element type of array_node_ref
@@ -368,7 +415,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
           boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
       BB_loop_block->PushBack(loopCond, AppM);
-      
+      */
+
       // TODO: add to BB_start_block: initialize first stack frame with n=n, return_value=0
 
       // TODO: analysis on existing code: operation on recursive result (n * factorial_result), operation on recursive argument (n-1), base case (result=1)
