@@ -195,11 +195,11 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    analyzeRecursivePatterns(call_sites);
 
    // DEBUG PRINT IR
-   std::cout << "===== IR BEFORE manipulation" << std::endl;
+   std::cout << "\n===== IR BEFORE manipulation =====" << std::endl;
    for(const auto& block : sl->list_of_bloc) {
-      std::cout << "[+] Examining basic block: " << block.first << "\n";
+      std::cout << "[+] block: " << block.first << "\n";
       for(const auto& stmt : block.second->CGetStmtList()) {
-         std::cout << "   [+] Examining statement: " << stmt->ToString() << "; " << stmt->get_kind_text();
+         std::cout << "   [+] statement: " << stmt->ToString() << "; " << stmt->get_kind_text();
          if(stmt->get_kind() == gimple_assign_K)
          {
             // attempt to print out type of StackFrame* from factorial_iterative
@@ -256,6 +256,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          std::cout << "\n";
       }
    } 
+   std::cout << "==================================\n" << std::endl;
    // END DEBUG
 
    // MODIFY RECURSIVE FUNCTIONS
@@ -343,7 +344,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto BB_exit = sl->list_of_bloc.at(1); // Get exit block
 
       // Remove all existing statements & blocks
-      std::cout << "[+] Remove all statements" << std::endl;
       for(auto & block : sl->list_of_bloc) {
           block.second->list_of_pred.clear();
           block.second->list_of_succ.clear();
@@ -362,7 +362,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
               block.second->RemovePhi(phi);
           }
       }
-      std::cout << "[+] Remove all basic blocks" << std::endl;
       for(auto it = sl->list_of_bloc.begin(); it != sl->list_of_bloc.end();) {
           if(it->first != 0 && it->first != 1) { it = sl->list_of_bloc.erase(it); }
           else { it++; }
@@ -371,70 +370,73 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_exit->add_pred(BB_entry->number);
       BB_exit->add_pred(BB_exit->number);
 
-      /*
-      // Create start block
-      const auto BB_start_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      sl->add_bloc(BB_start_block);
-     
-      // Create loop condition block
-      const auto BB_loop_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      sl->add_bloc(BB_loop_block); 
-
-      // Create last block
-      const auto BB_last_block = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      sl->add_bloc(BB_last_block);
-
-      // Insert BB_start_block into the top of IR 
-      BB_start_block->add_pred(BB_entry->number);      // add entry as pred to start_block
-      BB_start_block->add_succ(first_block->number);   // add first_block as succ to start_block
-      BB_entry->add_succ(BB_start_block->number);      // add start_block as succ to entry
-      first_block->add_pred(BB_start_block->number);   // add start_block as pred to first_block
-      remove_BB(first_block->list_of_pred, 0);         // remove entry as pred to first_block
-      remove_BB(BB_entry->list_of_succ, first_block->number); // remove first_block as succ to entry
+      ///////////////////////////////////////// Create blocks TODO inlined push & pop will require several blocks
+      const auto BB_block_2 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_2);
       
-      // Insert loop_block into IR
-      BB_loop_block->true_edge = first_block->number;    // set true edge of loop_block to start_block
-      BB_loop_block->false_edge = BB_last_block->number;    // set false edge of loop_block to last_block
-      BB_loop_block->add_succ(BB_start_block->number);      // add start_block as succ to loop_block (true edge)
-      BB_loop_block->add_succ(BB_last_block->number);       // add last_block as succ to loop_block (false edge)
-      first_block->add_pred(BB_loop_block->number);      // add loop_block as pred to start_block
+      const auto BB_block_3 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_3);
       
-      // Find all blocks pointing to exit. All these blocks must now point to loop_block TODO might be incorrect
-      for(auto& block : sl->list_of_bloc) {
-          int i = block.first;
-	  if(i == 0 || i == 1) { continue; }
-          const auto BB_i = sl->list_of_bloc.at(i); // Get blocks which pt to exit
-          if(std::find(BB_i->list_of_succ.begin(), BB_i->list_of_succ.end(), 1) == BB_i->list_of_succ.end()) {
-              continue;
-          }
-	      remove_BB(BB_i->list_of_succ, 1);         // remove exit as succ to blocks which pt to exit
-         remove_BB(BB_exit->list_of_pred, i);      // remove blocks which to pt to exit as pred of exit
-         BB_loop_block->add_pred(i);               // add blocks which pt to exit as pred of loop_block
-	      BB_i->add_succ(BB_loop_block->number);    // add loop_block as succ to blocks which pt to exit
-      }
+      // Base case block
+      const auto BB_block_4 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_4);
+      
+      const auto BB_block_5 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_5);
+      
+      const auto BB_block_6 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_6);
+      
+      const auto BB_block_7 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_7);
+      
+      const auto BB_block_loop = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_loop); 
 
-      BB_last_block->add_pred(BB_loop_block->number);       // add loop_block as pred to last_block
-      BB_last_block->add_succ(1);                           // add exit as succ to last_block
-      BB_exit->add_pred(BB_last_block->number);             // add last_block as pred to exit
-      */
+      BB_block_2->add_pred(BB_entry->number);
+      BB_block_2->add_succ(BB_block_3->number);
+      
+      BB_block_3->add_pred(BB_block_2->number);
+      BB_block_3->add_pred(BB_block_loop->number);
+      BB_block_3->add_succ(BB_block_4->number);
+      BB_block_3->add_succ(BB_block_5->number);
 
-      ///////////////////////////////////////////////////// Insert instructions
-      /*
-      // top  = -1;
+      BB_block_4->add_pred(BB_block_3->number);
+      BB_block_4->add_succ(BB_block_6->number);
+      BB_block_4->add_succ(BB_block_7->number);
+
+      BB_block_5->add_pred(BB_block_3->number);
+      BB_block_5->add_succ(BB_block_loop->number);
+
+      BB_block_6->add_pred(BB_block_4->number);
+      BB_block_6->add_succ(BB_block_loop->number);
+
+      BB_block_7->add_pred(BB_block_4->number);
+      BB_block_7->add_succ(BB_block_loop->number);
+
+      BB_block_loop->add_pred(BB_block_5->number);
+      BB_block_loop->add_pred(BB_block_6->number);
+      BB_block_loop->add_pred(BB_block_7->number);
+      BB_block_loop->add_succ(BB_entry->number);
+      BB_block_loop->add_succ(BB_exit->number);
+
+      BB_entry->add_succ(BB_block_2->number);
+      BB_exit->add_pred(BB_block_loop->number);
+
+      ///////////////////////////////////////// Insert Instructions 
+      // Insert top = -1; -> block_2
       auto intTy = tree_man->GetSignedIntegerType();
       const auto intTy_node = GetPointerS<const type_node>(intTy);
       const auto top_var_identifier = tree_man->create_identifier_node("bambu_artificial_top");
       const auto top_var_decl =
             tree_man->create_var_decl(top_var_identifier, intTy, tn, intTy_node->size, tree_nodeRef(),
-                                    tree_nodeRef(), BUILTIN_SRCP, intTy_node->algn, 0, false);
-      
+            tree_nodeRef(), BUILTIN_SRCP, intTy_node->algn, 0, false);
       const auto neg1Cst = TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
-      const auto assignNeg1 = // Use decl over identifier for top_var ?
+      const auto assignNeg1 = 
             tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
-      BB_start_block->PushBack(assignNeg1, AppM);
-      
-      
-      // initialize the stack : stack[0] = 0;
+      BB_block_2->PushBack(assignNeg1, AppM); 
+
+      // Insert stack[0] = 0; -> block_2
       const auto elem_type = tree_man->GetSignedIntegerType(); // tree_helper::CGetElements(tree_helper::CGetType(array_node_raw)); // element type of array_node_ref
       const auto c0 = TM->CreateUniqueIntegerCst((integer_cst_t)0, elem_type);
       const auto idx0 = TM->CreateUniqueIntegerCst((integer_cst_t)0, tree_man->GetSignedIntegerType());
@@ -446,15 +448,15 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       auto elem_nid = TM->new_tree_node_id();
       auto arr_elem = TM->create_tree_node(elem_nid, array_ref_K, idx_schema);
       auto assignArr0 = tree_man->create_gimple_modify_stmt(arr_elem, c0, function_id, BUILTIN_SRCP);
-      BB_start_block->PushBack(assignArr0, AppM);
+      BB_block_2->PushBack(assignArr0, AppM);
 
-      // Add top != 1 condition to loop_block
+      // Insert if (top != 1) { block_ } block_ -> block_loop
       const auto boolean_type = tree_man->GetBooleanType();
       const tree_nodeRef cond = tree_man->create_binary_operation(
-          boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
+            boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
-      BB_loop_block->PushBack(loopCond, AppM);
-      */
+      BB_block_loop->PushBack(loopCond, AppM); 
+
 
       // TODO: add to BB_start_block: initialize first stack frame with n=n, return_value=0
 
@@ -491,18 +493,17 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    }
 
    // DEBUG PRINT IR
-   std::cout << "\n===== IR after manipulation" << std::endl;
+   std::cout << "\n===== IR after manipulation =====" << std::endl;
    for(const auto& block : sl->list_of_bloc) {
-      std::cout << "[+] Examining basic block: " << block.first << "\n";
+      std::cout << "[+] block: " << block.first << "\n";
       for(const auto& stmt : block.second->CGetStmtList()) {
-         std::cout << "   [+] Examining statement: " << stmt->ToString() << "; " << stmt->get_kind_text() << "\n";
+         std::cout << "   [+] statement: " << stmt->ToString() << "; " << stmt->get_kind_text() << "\n";
       }
    } 
-   // END DEBUG
+   std::cout << "=================================\n" << std::endl;
+
    std::string filename = "BBGraph_After.dot";
    WriteBBGraphDot(filename);
-
-   std::cout << "========== Recursion Removal Complete ==========\n\n";
 
    if(changed)
    {
@@ -510,5 +511,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       return DesignFlowStep_Status::SUCCESS;
    }
    
+   std::cout << "========== Recursion Removal Complete ==========\n\n";
    return DesignFlowStep_Status::UNCHANGED;
 }
