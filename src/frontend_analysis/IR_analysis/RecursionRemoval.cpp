@@ -133,9 +133,10 @@ static void analyzeRecursivePatterns(std::vector<std::pair<unsigned int, tree_no
       const auto ce = GetPointer<call_expr>(stmt_node->op1);
       for(auto& arg : ce->args) //std::vector<tree_nodeRef> args = ce->args;
       {
-         const auto sa = GetPointer<ssa_name>(arg);
-         const auto def_stmt = sa->CGetDefStmt();
          std::cout << "  [+] Recursive argument: " << arg->ToString() << " | " << arg->get_kind_text() << "\n";
+         const auto sa = GetPointer<ssa_name>(arg);
+         if (!sa) continue;
+         const auto def_stmt = sa->CGetDefStmt();
          std::cout << "      Def stmt: " << def_stmt->ToString() << " | " << def_stmt->get_kind_text() <<"\n";
 
          // we need to work all the way back to the argument (eg n_9083) but we could assume we need to traverse only 1 operation back for now
@@ -143,6 +144,37 @@ static void analyzeRecursivePatterns(std::vector<std::pair<unsigned int, tree_no
          // TODO: ReplaceTreeNode
       }
    }
+}
+
+static tree_nodeConstRef identifyBaseCase(const statement_list *const sl) {
+   // Find the pre-exit block where the return node lives
+   //const tree_nodeRef return_node;
+   blocRef pre_exitBB = nullptr;
+   for (const auto& B : sl->list_of_bloc) {
+      for (const tree_nodeRef &stmt : B.second->CGetStmtList()) {
+         if (stmt->get_kind() == gimple_return_K) {
+               //return_node = stmt;
+               pre_exitBB = B.second;
+               break;
+         }
+      }
+      if (pre_exitBB) break;
+   }          
+
+   // Return the phi node def that is NOT SSA_NAME (eg is an integer)
+   const std::list<tree_nodeRef>& phi_nodes = pre_exitBB->CGetPhiList(); //GetPointer<blocRef(pre_exitBB)->CGetPhiList();
+   THROW_ASSERT(phi_nodes.size() == 1, "Expected exactly 1 phi in pre exit block");
+   const auto phi_node = GetPointer<gimple_phi>(phi_nodes.front());
+   const auto defs = phi_node->CGetDefEdgesList();
+   for (const auto def : defs) {
+      std::cout << "  [+] Base case def: " << def.first->ToString() << "|" << def.first->get_kind_text() << "\n";
+      if (def.first->get_kind() != ssa_name_K) return def.first; // return the non-SSA_NAME node
+   }
+
+   return nullptr; // TODO: come up with backup when all defs are ssa_names
+   //scan over each of the phi's defs, and tranverse the defs back to find which BB they're in, 
+   // if it's a BB w/ a reucrsive call, then it's not a base case
+   // NOTE: use ->bb_index to get basic block index from an instruction
 }
 
 void fix_sdc_motion(DesignFlowManagerConstRef design_flow_manager, unsigned int function_id,
@@ -193,6 +225,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
    std::vector<std::pair<unsigned int, tree_nodeConstRef>> call_sites; // (bb_index, stmt)
    identifyRecursivePatterns(call_sites, AppM, fd, sl);
    analyzeRecursivePatterns(call_sites);
+   const auto baseCaseNode = identifyBaseCase(sl);
 
    // DEBUG PRINT IR
    std::cout << "\n===== IR BEFORE manipulation =====" << std::endl;
