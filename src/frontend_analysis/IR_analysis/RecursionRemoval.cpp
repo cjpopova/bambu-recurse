@@ -399,14 +399,20 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_block_2->add_pred(BB_entry->number);
       BB_block_2->add_succ(BB_block_4->number);
 
+      BB_block_4->true_edge = BB_block_5->number;
+      BB_block_4->false_edge = BB_block_8->number;
       BB_block_4->add_pred(BB_block_2->number);
       BB_block_4->add_succ(BB_block_5->number);
       BB_block_4->add_succ(BB_block_8->number);
 
+      BB_block_5->true_edge = BB_block_6->number;
+      BB_block_5->false_edge = BB_block_7->number;
       BB_block_5->add_pred(BB_block_4->number);
       BB_block_5->add_succ(BB_block_6->number);
       BB_block_5->add_succ(BB_block_7->number);
 
+      BB_block_6->true_edge = BB_block_15->number;
+      BB_block_6->false_edge = BB_block_6b->number;
       BB_block_6->add_pred(BB_block_5->number);
       BB_block_6->add_succ(BB_block_15->number);
       BB_block_6->add_succ(BB_block_6b->number);
@@ -417,6 +423,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_block_6b->add_pred(BB_block_6->number);
       BB_block_6b->add_succ(BB_block_3->number);
 
+      BB_block_8->true_edge = BB_block_15->number;
+      BB_block_8->false_edge = BB_block_8b->number;
       BB_block_8->add_pred(BB_block_4->number);
       BB_block_8->add_succ(BB_block_8b->number);
       BB_block_8->add_succ(BB_block_15->number);
