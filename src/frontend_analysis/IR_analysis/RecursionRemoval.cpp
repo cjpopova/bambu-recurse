@@ -370,7 +370,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto BB_block_3 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_block_3);
       
-      // Base case block
       const auto BB_block_4 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_block_4);
       
@@ -383,38 +382,59 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto BB_block_7 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_block_7);
       
-      const auto BB_block_loop = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      sl->add_bloc(BB_block_loop); 
-
-      BB_block_2->add_pred(BB_entry->number);
-      BB_block_2->add_succ(BB_block_3->number);
+      const auto BB_block_8 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_8);
       
-      BB_block_3->add_pred(BB_block_2->number);
-      BB_block_3->add_pred(BB_block_loop->number);
-      BB_block_3->add_succ(BB_block_4->number);
-      BB_block_3->add_succ(BB_block_5->number);
+      const auto BB_block_6b = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_6b);
 
-      BB_block_4->add_pred(BB_block_3->number);
-      BB_block_4->add_succ(BB_block_6->number);
-      BB_block_4->add_succ(BB_block_7->number);
-
-      BB_block_5->add_pred(BB_block_3->number);
-      BB_block_5->add_succ(BB_block_loop->number);
-
-      BB_block_6->add_pred(BB_block_4->number);
-      BB_block_6->add_succ(BB_block_loop->number);
-
-      BB_block_7->add_pred(BB_block_4->number);
-      BB_block_7->add_succ(BB_block_loop->number);
-
-      BB_block_loop->add_pred(BB_block_5->number);
-      BB_block_loop->add_pred(BB_block_6->number);
-      BB_block_loop->add_pred(BB_block_7->number);
-      BB_block_loop->add_succ(BB_block_3->number);
-      BB_block_loop->add_succ(BB_exit->number);
+      const auto BB_block_8b = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_8b);
+      
+      const auto BB_block_15 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_15); 
 
       BB_entry->add_succ(BB_block_2->number);
-      BB_exit->add_pred(BB_block_loop->number);
+
+      BB_block_2->add_pred(BB_entry->number);
+      BB_block_2->add_succ(BB_block_4->number);
+
+      BB_block_4->add_pred(BB_block_2->number);
+      BB_block_4->add_succ(BB_block_5->number);
+      BB_block_4->add_succ(BB_block_8->number);
+
+      BB_block_5->add_pred(BB_block_4->number);
+      BB_block_5->add_succ(BB_block_6->number);
+      BB_block_5->add_succ(BB_block_7->number);
+
+      BB_block_6->add_pred(BB_block_5->number);
+      BB_block_6->add_succ(BB_block_15->number);
+      BB_block_6->add_succ(BB_block_6b->number);
+
+      BB_block_7->add_pred(BB_block_5->number);
+      BB_block_7->add_succ(BB_block_3->number);
+
+      BB_block_6b->add_pred(BB_block_6->number);
+      BB_block_6b->add_succ(BB_block_3->number);
+
+      BB_block_8->add_pred(BB_block_4->number);
+      BB_block_8->add_succ(BB_block_8b->number);
+      BB_block_8->add_succ(BB_block_15->number);
+
+      BB_block_8b->add_pred(BB_block_8->number);
+      BB_block_8b->add_succ(BB_block_3->number);
+
+      BB_block_3->add_pred(BB_block_6b->number);
+      BB_block_3->add_pred(BB_block_7->number);
+      BB_block_3->add_pred(BB_block_8b->number);
+      BB_block_3->add_succ(BB_block_4->number);
+
+      BB_block_15->add_pred(BB_block_6->number);
+      BB_block_15->add_pred(BB_block_8->number);
+      BB_block_15->add_succ(BB_exit->number);
+
+      BB_exit->add_pred(BB_block_15->number);
+
 
       ///////////////////////////////////////// Insert Instructions 
       // Pseudocode & basic blocks #s roughly based on MLIR/man_fib at -O0
@@ -423,6 +443,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto boolTy = tree_man->GetBooleanType();
 
       // BB15: return block ============================================================================================================================================================
+      // retval = phi <retval_base, BB6> <retval_recur,BB8>
       auto retVar = tree_man->create_var_decl(tree_man->create_identifier_node("finalRetVar"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
       // note: setup possible ret vals there are. for now, assume 2. eventually this should probably iterate over a map of blocks & other info
@@ -432,12 +453,12 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);                
       {
       std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
-      list_of_def_edge.push_back(std::make_pair(ret_base, BB_block_2->number)); // TODO not the correct block #
-      list_of_def_edge.push_back(std::make_pair(ret_recur, BB_block_2->number)); // TODO not the correct block #
-      BB_block_6->AddPhi(tree_man->create_phi_node(retVar, list_of_def_edge, function_id));
+      list_of_def_edge.push_back(std::make_pair(ret_base, BB_block_6->number));
+      list_of_def_edge.push_back(std::make_pair(ret_recur, BB_block_8->number));
+      BB_block_15->AddPhi(tree_man->create_phi_node(retVar, list_of_def_edge, function_id));
       }
       // return retVar
-      BB_block_6->PushBack(tree_man->create_gimple_return(intTy, retVar, function_id, BUILTIN_SRCP), AppM);   
+      BB_block_15->PushBack(tree_man->create_gimple_return(intTy, retVar, function_id, BUILTIN_SRCP), AppM);   
       
       // BB3: phis; unconditionally loop back to 4 (while (1)) =====================================================================================================================
       // sp_bottom = phi <sp_base_non_empty, BB6b> <sp_incr, BB7><sp_dec,BB8b>
@@ -451,9 +472,9 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);                
       {
       std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
-      list_of_def_edge.push_back(std::make_pair(sp_decr_base, BB_block_2->number)); // TODO not the correct block #
-      list_of_def_edge.push_back(std::make_pair(sp_incr, BB_block_7->number)); // TODO not the correct block #
-      list_of_def_edge.push_back(std::make_pair(sp_decr_recur, BB_block_2->number)); // TODO not the correct block #
+      list_of_def_edge.push_back(std::make_pair(sp_decr_base, BB_block_6b->number));
+      list_of_def_edge.push_back(std::make_pair(sp_incr, BB_block_7->number));
+      list_of_def_edge.push_back(std::make_pair(sp_decr_recur, BB_block_8b->number));
       BB_block_3->AddPhi(tree_man->create_phi_node(sp_bottom, list_of_def_edge, function_id));
       }
       //retval_bottom = phi <retval_base, BB6b> <retval_top,BB7><reval_recur,BB8b>
@@ -463,9 +484,9 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);                
       {
       std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
-      list_of_def_edge.push_back(std::make_pair(ret_base, BB_block_2->number)); // TODO not the correct block #
-      list_of_def_edge.push_back(std::make_pair(ret_top, BB_block_2->number)); // TODO not the correct block #
-      list_of_def_edge.push_back(std::make_pair(ret_recur, BB_block_2->number)); // TODO not the correct block #
+      list_of_def_edge.push_back(std::make_pair(ret_base, BB_block_6b->number));
+      list_of_def_edge.push_back(std::make_pair(ret_top, BB_block_7->number));
+      list_of_def_edge.push_back(std::make_pair(ret_recur, BB_block_8b->number));
       BB_block_3->AddPhi(tree_man->create_phi_node(ret_bottom, list_of_def_edge, function_id));
       }
 
@@ -487,8 +508,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       //  retval_top = phi<retval_bottom, BB3><0,BB2>
       {
       std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
-      list_of_def_edge.push_back(std::make_pair(ret_bottom, BB_block_3->number)); // TODO not the correct block #
-      list_of_def_edge.push_back(std::make_pair(TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BB_block_2->number)); // TODO not the correct block #
+      list_of_def_edge.push_back(std::make_pair(ret_bottom, BB_block_3->number));
+      list_of_def_edge.push_back(std::make_pair(TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BB_block_2->number));
       BB_block_4->AddPhi(tree_man->create_phi_node(ret_top, list_of_def_edge, function_id));
       }
       // sp_top = phi<sp_bottom, BB3><0, BB2>
@@ -496,8 +517,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
       {
       std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
-      list_of_def_edge.push_back(std::make_pair(sp_bottom, BB_block_7->number)); // TODO not the correct block #
-      list_of_def_edge.push_back(std::make_pair(TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BB_block_2->number)); // TODO not the correct block #
+      list_of_def_edge.push_back(std::make_pair(sp_bottom, BB_block_3->number));
+      list_of_def_edge.push_back(std::make_pair(TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BB_block_2->number));
       BB_block_4->AddPhi(tree_man->create_phi_node(sp_top, list_of_def_edge, function_id));
       }
       // state & argument reads: state=stack_state[sp]; arg=stack_arg[sp];
@@ -520,7 +541,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // if (stateatSp == 0)
       const tree_nodeRef stateEq0Cond = tree_man->create_binary_operation(
             boolTy, stateAtSp, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, eq_expr_K);
-      BB_block_loop->PushBack(tree_man->create_gimple_cond(stateEq0Cond, function_id, BUILTIN_SRCP), AppM); 
+      BB_block_4->PushBack(tree_man->create_gimple_cond(stateEq0Cond, function_id, BUILTIN_SRCP), AppM); 
 
       
       // BB5: check base case (T=BB6; F=BB7) =====================================================================================================================================
@@ -530,6 +551,12 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // BB6: retval=base case; break the loop if stack is empty; otherwise decrement sp =========================================================================================
       // TODO: assume Andrew is working on this
       // this should set one of the retPhis to the base case value
+      // if (sp_top == 0) then BB15 else BB6b
+      {
+      const tree_nodeRef sp_topEq0Cond = tree_man->create_binary_operation(
+            boolTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, eq_expr_K);
+      BB_block_6->PushBack(tree_man->create_gimple_cond(sp_topEq0Cond, function_id, BUILTIN_SRCP), AppM);
+      }
       
       // BB7: do recursive call: set stack_state[sp]=1; increment sp; create next stack frame w/ recursive argument ==============================================================
       // stack_state[sp] = 1
@@ -537,8 +564,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          stack_state_decl, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)1, intTy)), AppM); 
       // sp_incr = sp_top + 1
       const tree_nodeRef sp_plus_1 = tree_man->create_binary_operation(
-            intTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, plus_expr_K);
-      BB_block_loop->PushBack(tree_man->CreateGimpleAssign(intTy, sp_incr, tree_nodeRef(), sp_plus_1, function_id, BUILTIN_SRCP), AppM); // WRONG BLOCK
+            intTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)1, intTy), BUILTIN_SRCP, plus_expr_K);
+      BB_block_7->PushBack(tree_man->CreateGimpleAssign(intTy, sp_incr, tree_nodeRef(), sp_plus_1, function_id, BUILTIN_SRCP), AppM); // NOTE: this didn't get named to sp_incr correctly
       //stack_state[sp]=0;
       BB_block_7->PushBack(createStackWrite(TM, tree_man, function_id, 
          stack_state_decl, sp_incr, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy)), AppM); 
@@ -552,63 +579,18 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // cond (sp_top == 0)
       const tree_nodeRef sp_topEq0Cond = tree_man->create_binary_operation(
             boolTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, eq_expr_K);
-      BB_block_loop->PushBack(tree_man->create_gimple_cond(sp_topEq0Cond, function_id, BUILTIN_SRCP), AppM); // TODO wrong block
+      BB_block_8->PushBack(tree_man->create_gimple_cond(sp_topEq0Cond, function_id, BUILTIN_SRCP), AppM);
       
       // BB8b
       // sp_decr_recur=sp_top-1
       const tree_nodeRef sp_minus_1 = tree_man->create_binary_operation(
             intTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)1, intTy), BUILTIN_SRCP, minus_expr_K);
-      BB_block_loop->PushBack(tree_man->CreateGimpleAssign(intTy, sp_decr_recur, tree_nodeRef(), sp_minus_1, function_id, BUILTIN_SRCP), AppM); // todo WRONG BLOCK
+      BB_block_8b->PushBack(tree_man->CreateGimpleAssign(intTy, sp_decr_recur, tree_nodeRef(), sp_minus_1, function_id, BUILTIN_SRCP), AppM);
 
 
 
 
 
-
-
-
-      ///////////// OLD INSERT INSTRUCTIONS //////////////////////
-      /*
-      // Insert top = -1; -> block_2
-      const auto intTy_node = GetPointerS<const type_node>(intTy);
-      const auto top_var_identifier = tree_man->create_identifier_node("bambu_artificial_top");
-      const auto top_var_decl =
-            tree_man->create_var_decl(top_var_identifier, intTy, tn, intTy_node->size, tree_nodeRef(),
-            tree_nodeRef(), BUILTIN_SRCP, intTy_node->algn, 0, false);
-      const auto neg1Cst = TM->CreateUniqueIntegerCst((integer_cst_t)-1, intTy);
-      const auto assignNeg1 = 
-            tree_man->CreateGimpleAssign(intTy, top_var_identifier, tree_nodeRef(), neg1Cst, function_id, BUILTIN_SRCP);
-      BB_block_2->PushBack(assignNeg1, AppM); 
-
-      // Insert stack[0] = 0; -> block_2
-      // const auto elem_type = tree_man->GetSignedIntegerType(); // tree_helper::CGetElements(tree_helper::CGetType(array_node_raw)); // element type of array_node_ref
-      // const auto c0 = TM->CreateUniqueIntegerCst((integer_cst_t)0, elem_type);
-      // const auto idx0 = TM->CreateUniqueIntegerCst((integer_cst_t)0, tree_man->GetSignedIntegerType());
-      // std::map<TreeVocabularyTokenTypes_TokenEnum, std::string> idx_schema;
-      // idx_schema[TOK(TOK_OP0)] = STR(stack_var_decl->index);
-      // idx_schema[TOK(TOK_OP1)] = STR(idx0->index);      
-      // idx_schema[TOK(TOK_TYPE)] = STR(elem_type->index);
-      // idx_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
-      // auto elem_nid = TM->new_tree_node_id();
-      // auto arr_elem = TM->create_tree_node(elem_nid, array_ref_K, idx_schema);
-      // auto assignArr0 = tree_man->create_gimple_modify_stmt(arr_elem, c0, function_id, BUILTIN_SRCP);
-      // BB_block_2->PushBack(assignArr0, AppM);
-
-      // Insert if (top != 1) { block_ } block_ -> block_loop
-      const tree_nodeRef cond = tree_man->create_binary_operation(
-            boolTy, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
-      const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
-      BB_block_loop->PushBack(loopCond, AppM); 
-      */
-
-      // TODO: add to BB_start_block: initialize first stack frame with n=n, return_value=0
-
-      // TODO: analysis on existing code: operation on recursive result (n * factorial_result), operation on recursive argument (n-1), base case (result=1)
-      // we will start by saving the placeholders for factorial & will do the real analysis later
-
-      // TODO: insert basic blocks & instructions for base case
-
-      // TODO: insert recursive case
 
       //DEBUG
       /*std::cout << "===== Dump all block's pred & succ =====" << std::endl;
@@ -621,17 +603,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
           for (auto p : b->list_of_pred) { std::cout << " " << p; }
       }*/
 
-      // Rewrite operations around recursive call
-      // TODO
-
-      // Remove recursive calls 
-      /*for(const auto& block : sl->list_of_bloc)
-      {
-         for(const auto& stmt : block.second->CGetStmtList())
-         {
-            TM->ReplaceTreeNode(stmt, p_decl, new_local_var_decl);
-         }
-      }*/
      changed = true;
    }
 
