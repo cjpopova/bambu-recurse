@@ -402,6 +402,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_block_4->true_edge = BB_block_5->number;
       BB_block_4->false_edge = BB_block_8->number;
       BB_block_4->add_pred(BB_block_2->number);
+      BB_block_4->add_pred(BB_block_3->number);
       BB_block_4->add_succ(BB_block_5->number);
       BB_block_4->add_succ(BB_block_8->number);
 
@@ -565,6 +566,15 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
             boolTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, eq_expr_K);
       BB_block_6->PushBack(tree_man->create_gimple_cond(sp_topEq0Cond, function_id, BUILTIN_SRCP), AppM);
       }
+
+      // BB6b
+      // sp_decr_base = sp_top - 1
+      {
+      const tree_nodeRef sp_minus_1 = tree_man->create_binary_operation(
+            intTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)1, intTy), BUILTIN_SRCP, minus_expr_K);
+      BB_block_6b->PushBack(tree_man->CreateGimpleAssign(intTy, sp_decr_base, tree_nodeRef(), sp_minus_1, function_id, BUILTIN_SRCP), AppM);
+      }
+
       
       // BB7: do recursive call: set stack_state[sp]=1; increment sp; create next stack frame w/ recursive argument ==============================================================
       // stack_state[sp] = 1
