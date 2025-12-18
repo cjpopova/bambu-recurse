@@ -370,7 +370,6 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto BB_block_3 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_block_3);
       
-      // Base case block
       const auto BB_block_4 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_block_4);
       
@@ -383,9 +382,61 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       const auto BB_block_7 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
       sl->add_bloc(BB_block_7);
       
-      const auto BB_block_loop = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
-      sl->add_bloc(BB_block_loop); 
+      const auto BB_block_8 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_8);
+      
+      const auto BB_block_6b = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_6b);
 
+      const auto BB_block_8b = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_8b);
+      
+      const auto BB_block_15 = blocRef(new bloc((sl->list_of_bloc.rbegin())->first + 1));
+      sl->add_bloc(BB_block_15); 
+
+      BB_entry->add_succ(BB_block_2->number);
+
+      BB_block_2->add_pred(BB_entry->number);
+      BB_block_2->add_succ(BB_block_4->number);
+
+      BB_block_4->add_pred(BB_block_2->number);
+      BB_block_4->add_succ(BB_block_5->number);
+      BB_block_4->add_succ(BB_block_8->number);
+
+      BB_block_5->add_pred(BB_block_4->number);
+      BB_block_5->add_succ(BB_block_6->number);
+      BB_block_5->add_succ(BB_block_7->number);
+
+      BB_block_6->add_pred(BB_block_5->number);
+      BB_block_6->add_succ(BB_block_15->number);
+      BB_block_6->add_succ(BB_block_6b->number);
+
+      BB_block_7->add_pred(BB_block_5->number);
+      BB_block_7->add_succ(BB_block_3->number);
+
+      BB_block_6b->add_pred(BB_block_6->number);
+      BB_block_6b->add_succ(BB_block_3->number);
+
+      BB_block_8->add_pred(BB_block_4->number);
+      BB_block_8->add_succ(BB_block_8b->number);
+      BB_block_8->add_succ(BB_block_15->number);
+
+      BB_block_8b->add_pred(BB_block_8->number);
+      BB_block_8b->add_succ(BB_block_3->number);
+
+      BB_block_3->add_pred(BB_block_6b->number);
+      BB_block_3->add_pred(BB_block_7->number);
+      BB_block_3->add_pred(BB_block_8b->number);
+      BB_block_3->add_succ(BB_block_4->number);
+
+      BB_block_15->add_pred(BB_block_6->number);
+      BB_block_15->add_pred(BB_block_8->number);
+      BB_block_15->add_succ(BB_exit->number);
+
+      BB_exit->add_pred(BB_block_15->number);
+
+      // OLD IR
+      /*
       BB_block_2->add_pred(BB_entry->number);
       BB_block_2->add_succ(BB_block_3->number);
       
@@ -415,9 +466,11 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
 
       BB_entry->add_succ(BB_block_2->number);
       BB_exit->add_pred(BB_block_loop->number);
+      */
 
       ///////////////////////////////////////// Insert Instructions 
       // Pseudocode & basic blocks #s roughly based on MLIR/man_fib at -O0
+      /*
       std::cout << "[+] Inserting instructions\n";
       const auto intTy = tree_man->GetSignedIntegerType();
       const auto boolTy = tree_man->GetBooleanType();
@@ -538,7 +591,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // do whatever post-computation on the recursive result
       // cond (sp==0)
       // decrement sp
-
+*/
 
 
 
