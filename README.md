@@ -1,3 +1,78 @@
+# TODO
+- [ ] copy performance evaluation from original bambu paper into ours
+- [ ] to address from class:
+  - can this be extended from single-input recursion? is it possible to package multiple input together?
+  - does this work on other inductive datatypes like lists? (we'll find out with quicksort)
+
+## strategy for identifying base case
+the existing set of nodes that we found for callers are not helpful
+1. scan over BBs and find the ones with call instructions to the function_id we're currently processing
+2. get the arguments to the recursive call and store what procedures they're going on that argument, that becomes what do before pushing
+3. get the stuff that is done TO the recursive result, that is what we do when poppping and writing into the next stack frame
+
+maybe try to figure out how to copy/duplicate nodes
+
+## useful references in the code
+```
+src/frontend_analysis/IR_analysis/FixStructsPassedByValue.cpp
+CheckSystemType::recursive_examinate - setting types & fields
+op_graph.hpp - contains list of instructions
+```
+https://github.com/jiangnan7/MLIR-Recursion/tree/main#
+
+## terminal
+```
+bambu ../fib.cpp --top-fname="r_fib" --compiler=I386_GCC8 -O0 ; disable frontend optimization
+bambu ../ackermann.c --top-fname=ackermann --print-dot
+ambu ../ackermann.c --verbosity=3 ; debugging messages at 3rd level
+bambu --top-fname="qsort" --print-dot /home/test/bambu-recurse/examples/function_pointers/qsort/musl/qsort.c ; compiling non-main functions
+```
+
+**dot**
+```
+from the directory `out`
+HLS_output/dot/qsort/BB_CFG.dot
+
+also see my_tool/bash_scripts/bambu-dot
+PNG_OUTPUT_PATH="/mnt/c/Users/pjpop/Downloads/bambu-recurse"
+dot -Tpng BBGraph_After.dot > $PNG_OUTPUT_PATH/XYZ.png
+
+$dot -Tpng BB_CFG.dot > BB_CFG.png
+/mnt/c/Users/pjpop/Downloads/bambu-recurse
+```
+
+**syncing across directories**
+```
+git reset --soft HEAD~1
+// check the added files; do another commit
+git push --force-with-lease
+
+on ubuntu 18.04:
+git reset --hard recurse/dev
+```
+
+**simulation**
+
+```
+> bambu ../stack.c --simulate
+....
+  Register binding information for function main:
+    Register allocation algorithm obtains an optimal result: 0 registers
+  Time to perform register binding: 0.00 seconds
+
+  Total number of flip-flops in function main: 0
+Warning: XML file "test.xml" cannot be opened, creating a stub with random values
+Warning: Returned error code!
+error -> The simulation does not end correctly
+        void SimulationTool::DetermineCycles(long long unsigned int&, long long unsigned int&)
+        ../../src/wrapper/simulation/SimulationTool.cpp:173
+Please report bugs to <panda-info@polimi.it>
+
+[out]> verilator --version
+Verilator 3.916 2017-11-25 rev verilator_3_914-65-g0478dbd
+```
+
+
 # PandA Bambu HLS Framework
 ![](style/img/panda.png.in)
 

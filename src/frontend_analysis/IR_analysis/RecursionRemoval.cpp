@@ -170,7 +170,7 @@ void fix_sdc_motion(DesignFlowManagerConstRef design_flow_manager, unsigned int 
     }
 }
 
-// Returns stack declaration of the form: uint32_t stack_name[depth];
+// Returns stack declaration of the form: int32_t stack_name[depth];
 const tree_nodeRef createStackDecl(const tree_managerRef& TM, const tree_manipulationRef& tree_man, unsigned int function_id,
                                     const std::string& stack_name, const int depth) {
       const auto tn = TM->GetTreeNode(function_id);
@@ -179,7 +179,7 @@ const tree_nodeRef createStackDecl(const tree_managerRef& TM, const tree_manipul
       unsigned array_nid  = TM->new_tree_node_id();
       auto array_node_raw = TM->create_tree_node(array_nid, array_type_K, IR_schema);
       auto array_ty = GetPointer<array_type>(array_node_raw);
-      array_ty->elts = tree_man->GetSignedIntegerType(); //rec_node_raw; // set element type to StackFrame record type (TODO: currently set to integer, so you'd need to change the algn below too)
+      array_ty->elts = tree_man->GetSignedIntegerType(); // NOTE: assume array type is int32_t
       // Set size to depth
       IR_schema.clear();
       IR_schema[TOK(TOK_SRCP)] = BUILTIN_SRCP;
@@ -192,12 +192,12 @@ const tree_nodeRef createStackDecl(const tree_managerRef& TM, const tree_manipul
       // create declaration
       const auto stack_var_identifier = tree_man->create_identifier_node(stack_name);
       auto stackDecl = tree_man->create_var_decl(stack_var_identifier, array_node_raw, tn, domn_node_raw, tree_nodeRef(),
-                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
+                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(array_ty->elts)->algn, 0, false);       
      return stackDecl;
 }
 
 // Returns an instruction of the form: stack_var[idx_node] = val_node
-// Also only works on uint32_t
+// Also only works on int32_t
 const tree_nodeRef createStackWrite(const tree_managerRef& TM, const tree_manipulationRef& tree_man, unsigned int function_id,
                                     const tree_nodeRef& stack_var, const tree_nodeRef& idx_node, const tree_nodeRef& val_node) {
    const auto elem_type = tree_man->GetSignedIntegerType(); // tree_helper::CGetElements(tree_helper::CGetType(array_node_raw)); // element type of array_node_ref
@@ -212,7 +212,7 @@ const tree_nodeRef createStackWrite(const tree_managerRef& TM, const tree_manipu
 }
 
 // Returns an instruction of the form: var_node = stack_var[idx_node]
-// Also only works on uint32_t
+// Also only works on int32_t
 const tree_nodeRef createStackRead(const tree_managerRef& TM, const tree_manipulationRef& tree_man, unsigned int function_id,
                                     const tree_nodeRef& stack_var, const tree_nodeRef& idx_node, const tree_nodeRef& var_node) {
    const auto elem_type = tree_man->GetSignedIntegerType(); // tree_helper::CGetElements(tree_helper::CGetType(array_node_raw)); // element type of array_node_ref
@@ -420,6 +420,40 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // Pseudocode & basic blocks #s roughly based on MLIR/man_fib at -O0
       std::cout << "[+] Inserting instructions\n";
       const auto intTy = tree_man->GetSignedIntegerType();
+      const auto boolTy = tree_man->GetBooleanType();
+
+      // BB15: return block ============================================================================================================================================================
+      auto retVar = tree_man->create_var_decl(tree_man->create_identifier_node("finalRetVar"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
+      // note: setup possible ret vals there are. for now, assume 2. eventually this should probably iterate over a map of blocks & other info
+      auto ret_base = tree_man->create_var_decl(tree_man->create_identifier_node("ret_base"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
+      auto ret_recur = tree_man->create_var_decl(tree_man->create_identifier_node("ret_recur"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);                
+      {
+      std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
+      list_of_def_edge.push_back(std::make_pair(ret_base, BB_block_2->number)); // TODO not the correct block #
+      list_of_def_edge.push_back(std::make_pair(ret_recur, BB_block_2->number)); // TODO not the correct block #
+      BB_block_6->AddPhi(tree_man->create_phi_node(retVar, list_of_def_edge, function_id));
+      }
+      // return retVar
+      BB_block_6->PushBack(tree_man->create_gimple_return(intTy, retVar, function_id, BUILTIN_SRCP), AppM);   
+      
+      // BB3: phis; unconditionally loop back to 4 (while (1)) =====================================================================================================================
+      // sp_bottom = phi <sp_base_non_empty, BB6b> <sp_incr, BB7><sp_dec,BB8b>
+      // TODO
+      //retval_bottom = phi <retval_base, BB6b> <retval_top,BB7><reval_recur,BB8b>
+      auto ret_bottom = tree_man->create_var_decl(tree_man->create_identifier_node("ret_bottom"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);                
+      auto ret_top = tree_man->create_var_decl(tree_man->create_identifier_node("ret_top"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
+                                    tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);                
+      {
+      std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
+      list_of_def_edge.push_back(std::make_pair(ret_top, BB_block_2->number)); // TODO not the correct block #
+      list_of_def_edge.push_back(std::make_pair(ret_recur, BB_block_2->number)); // TODO not the correct block #
+      BB_block_3->AddPhi(tree_man->create_phi_node(ret_bottom, list_of_def_edge, function_id));
+      }
+
 
       // BB2: initialize stacks of the argument (n) & state =========================================================================================================================
       p_decl_it = fd->list_of_args.begin();
@@ -435,62 +469,59 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
          stack_state_decl, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy) , TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy)), AppM); 
 
       // BB4: phis; read stacks of argument (n) and state; conditional on new state == 0 (T=BB5; F=BB8) ============================================================================================
-       // sp = phi<sp after loop update>, <0>
-      auto sp_phi1 = tree_man->create_var_decl(tree_man->create_identifier_node("sp_phi1"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
+      //  retval_top = phi<retval_bottom, BB3><0,BB2>
+      // TODO
+      // sp_top = phi<sp_bottom, BB3><0, BB2>
+      auto sp_top = tree_man->create_var_decl(tree_man->create_identifier_node("sp_top"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
-      auto sp_phi2 = tree_man->create_var_decl(tree_man->create_identifier_node("sp_phi2"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
+      auto sp_bottom = tree_man->create_var_decl(tree_man->create_identifier_node("sp_bottom"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
+      {
       std::vector<std::pair<tree_nodeRef, unsigned int>> list_of_def_edge; // NOTE # of incoming edges may depend on # of base cases
-      list_of_def_edge.push_back(std::make_pair(sp_phi2, BB_block_7->number)); // TODO not the correct block #
+      list_of_def_edge.push_back(std::make_pair(sp_bottom, BB_block_7->number)); // TODO not the correct block #
       list_of_def_edge.push_back(std::make_pair(TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BB_block_2->number)); // TODO not the correct block #
-      const auto sp_phi_stmt = tree_man->create_phi_node(sp_phi1, list_of_def_edge, function_id);
-      BB_block_4->AddPhi(sp_phi_stmt);
+      BB_block_4->AddPhi(tree_man->create_phi_node(sp_top, list_of_def_edge, function_id));
+      }
       // state & argument reads: state=stack_state[sp]; arg=stack_arg[sp];
       p_decl_it = fd->list_of_args.begin();
       stack_decl_it = argumentStackDecls.begin();
+      std::vector<tree_nodeRef> argsAtSp;
       for(; p_decl_it != fd->list_of_args.cend(); p_decl_it++, stack_decl_it++)
       {
          const auto p_decl = *p_decl_it;
          const auto stack_n_decl = *stack_decl_it;
          auto argAtSp = tree_man->create_var_decl(tree_man->create_identifier_node("arg_"+STR(p_decl)+"AtSp"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
-      
-         BB_block_4->PushBack(createStackRead(TM, tree_man, function_id, stack_n_decl, sp_phi1, argAtSp), AppM);
-         // todo vector of argAtSp?
+         argsAtSp.push_back(argAtSp); // NOTE: use ordered map instead of vector
+         BB_block_4->PushBack(createStackRead(TM, tree_man, function_id, stack_n_decl, sp_top, argAtSp), AppM);
+         
       }
       auto stateAtSp = tree_man->create_var_decl(tree_man->create_identifier_node("stateAtSp"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);       
-      BB_block_4->PushBack(createStackRead(TM, tree_man, function_id, stack_state_decl, sp_phi1, stateAtSp), AppM); 
+      BB_block_4->PushBack(createStackRead(TM, tree_man, function_id, stack_state_decl, sp_top, stateAtSp), AppM); 
+      // if (stateatSp == 0)
+      const tree_nodeRef stateEq0Cond = tree_man->create_binary_operation(
+            boolTy, stateAtSp, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, eq_expr_K);
+      BB_block_loop->PushBack(tree_man->create_gimple_cond(stateEq0Cond, function_id, BUILTIN_SRCP), AppM); 
 
-      // BB3: phis; unconditionally loop back to 4 (while (1)) =====================================================================================================================
-      // if state == 0 it means that we are before the recursive call. Thus it should go to block 4 which should hold 
-      // the base case. If state != 0 it is after the recursive call. We may need more if else stmts if we want to 
-      // handle multiple recursive calls
-      
-      auto stateAtSp_3 = tree_man->create_var_decl(tree_man->create_identifier_node("stateAtSp_3"), intTy, tn, GetPointer<const type_node>(intTy)->size, tree_nodeRef(), tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);
-      BB_block_3->PushBack(createStackRead(TM, tree_man, function_id, stack_state_decl, sp_phi1, stateAtSp_3), AppM);
-
-      const auto boolean_type = tree_man->GetBooleanType();
-      const auto zeroCst = TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy);
-      const tree_nodeRef cond = tree_man->create_binary_operation(
-            boolean_type, stateAtSp_3, zeroCst, BUILTIN_SRCP, ne_expr_K);
-      const auto stateCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
-      BB_block_3->PushBack(stateCond, AppM); 
-      
       
       // BB5: check base case (T=BB6; F=BB7) =====================================================================================================================================
+      // TODO: we need an analysis path to determine the base case condition
+      // insert whatever argAtSp == baseCase conditional
 
       // BB6: retval=base case; break the loop if stack is empty; otherwise decrement sp =========================================================================================
+      // TODO: assume Andrew is working on this
+      // this should set one of the retPhis to the base case value
       
       // BB7: do recursive call: set stack_state[sp]=1; increment sp; create next stack frame w/ recursive argument ==============================================================
       // stack_state[sp] = 1
       BB_block_7->PushBack(createStackWrite(TM, tree_man, function_id, 
-         stack_state_decl, sp_phi1, TM->CreateUniqueIntegerCst((integer_cst_t)1, intTy)), AppM); 
+         stack_state_decl, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)1, intTy)), AppM); 
       // sp++ // i am not sure which sp variable this will end up being yet
       auto sp_recur = tree_man->create_var_decl(tree_man->create_identifier_node("sp_recur"), intTy, tn,  GetPointer<const type_node>(intTy)->size, tree_nodeRef(),
                                     tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);
       const tree_nodeRef sp_plus_1 = tree_man->create_binary_operation(
-            intTy, sp_phi1, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, plus_expr_K);
+            intTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy), BUILTIN_SRCP, plus_expr_K);
       const auto incrSp = 
             tree_man->CreateGimpleAssign(intTy, sp_recur, tree_nodeRef(), sp_plus_1, function_id, BUILTIN_SRCP);
       BB_block_loop->PushBack(incrSp, AppM); // WRONG BLOCK
@@ -501,12 +532,14 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // TODO
 
 
-      // BB8: [target of state==1] complete first recursive call; set stack_state[sp]=2; increment sp; create next stack frame w/ recursive argument ===============================
-
-      // BB9: [target of state==2] [TODO: need conditional block that precedes BB8 and BB9 to decide between those two states] =====================================================
+      // BB8: [target of state==1] compute recursive result; 
       // compute retval with recursive results now available. break the loop if the stack is empty
+      // the result of the last recursive call is in retval_top (which var is this??)
+      // do whatever post-computation on the recursive result
+      // cond (sp==0)
+      // decrement sp
 
-      // BB?: return value phi ========================================================================================================================================================
+
 
 
 
@@ -552,9 +585,8 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // BB_block_2->PushBack(assignArr0, AppM);
 
       // Insert if (top != 1) { block_ } block_ -> block_loop
-      const auto boolean_type = tree_man->GetBooleanType();
       const tree_nodeRef cond = tree_man->create_binary_operation(
-            boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
+            boolTy, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
       BB_block_loop->PushBack(loopCond, AppM); 
       */
