@@ -410,7 +410,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_block_loop->add_pred(BB_block_5->number);
       BB_block_loop->add_pred(BB_block_6->number);
       BB_block_loop->add_pred(BB_block_7->number);
-      BB_block_loop->add_succ(BB_entry->number);
+      BB_block_loop->add_succ(BB_block_3->number);
       BB_block_loop->add_succ(BB_exit->number);
 
       BB_entry->add_succ(BB_block_2->number);
@@ -463,7 +463,21 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       BB_block_4->PushBack(createStackRead(TM, tree_man, function_id, stack_state_decl, sp_phi1, stateAtSp), AppM); 
 
       // BB3: phis; unconditionally loop back to 4 (while (1)) =====================================================================================================================
+      // if state == 0 it means that we are before the recursive call. Thus it should go to block 4 which should hold 
+      // the base case. If state != 0 it is after the recursive call. We may need more if else stmts if we want to 
+      // handle multiple recursive calls
+      
+      auto stateAtSp_3 = tree_man->create_var_decl(tree_man->create_identifier_node("stateAtSp_3"), intTy, tn, GetPointer<const type_node>(intTy)->size, tree_nodeRef(), tree_nodeRef(), BUILTIN_SRCP, GetPointerS<const type_node>(tree_man->GetSignedIntegerType())->algn, 0, false);
+      BB_block_3->PushBack(createStackRead(TM, tree_man, function_id, stack_state_decl, sp_phi1, stateAtSp_3), AppM);
 
+      const auto boolean_type = tree_man->GetBooleanType();
+      const auto zeroCst = TM->CreateUniqueIntegerCst((integer_cst_t)0, intTy);
+      const tree_nodeRef cond = tree_man->create_binary_operation(
+            boolean_type, stateAtSp_3, zeroCst, BUILTIN_SRCP, ne_expr_K);
+      const auto stateCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
+      BB_block_3->PushBack(stateCond, AppM); 
+      
+      
       // BB5: check base case (T=BB6; F=BB7) =====================================================================================================================================
 
       // BB6: retval=base case; break the loop if stack is empty; otherwise decrement sp =========================================================================================
@@ -511,6 +525,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
 
 
       ///////////// OLD INSERT INSTRUCTIONS //////////////////////
+      /*
       // Insert top = -1; -> block_2
       const auto intTy_node = GetPointerS<const type_node>(intTy);
       const auto top_var_identifier = tree_man->create_identifier_node("bambu_artificial_top");
@@ -542,7 +557,7 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
             boolean_type, top_var_decl, neg1Cst, BUILTIN_SRCP, ne_expr_K);
       const auto loopCond = tree_man->create_gimple_cond(cond, function_id, BUILTIN_SRCP);
       BB_block_loop->PushBack(loopCond, AppM); 
-
+      */
 
       // TODO: add to BB_start_block: initialize first stack frame with n=n, return_value=0
 
