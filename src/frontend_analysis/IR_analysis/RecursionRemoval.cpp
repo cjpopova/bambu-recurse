@@ -560,6 +560,12 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       // BB6: retval=base case; break the loop if stack is empty; otherwise decrement sp =========================================================================================
       // TODO: assume Andrew is working on this
       // this should set one of the retPhis to the base case value
+      // For now only handling integer recursive base cases
+      
+      const auto int_cst_baseCase = GetPointer<const integer_cst>(baseCaseNode);
+      const auto baseCaseValue = TM->CreateUniqueIntegerCst(int_cst_baseCase->value, int_cst_baseCase->type);
+      BB_block_6->PushBack(tree_man->CreateGimpleAssign(intTy, ret_base, tree_nodeRef(), baseCaseValue, function_id, BUILTIN_SRCP), AppM);
+
       // if (sp_top == 0) then BB15 else BB9
       {
       const tree_nodeRef sp_topEq0Cond = tree_man->create_binary_operation(
