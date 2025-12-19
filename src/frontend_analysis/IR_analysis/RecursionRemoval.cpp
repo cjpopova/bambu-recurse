@@ -159,8 +159,8 @@ static void analyzeRecursivePatterns(std::vector<std::pair<unsigned int, tree_no
    }
 }
 
-// Analyze the base condition and base case value
-static tree_nodeConstRef identifyBaseCase(const statement_list *const sl) {
+// static tree_nodeConstRef identifyBaseCase(const statement_list *const sl) {
+static std::pair<tree_nodeConstRef, tree_nodeRef> identifyBaseCase(const statement_list *const sl) {
    // Find the pre-exit block where the return node lives
    //const tree_nodeRef return_node;
    blocRef pre_exitBB = nullptr;
@@ -182,10 +182,14 @@ static tree_nodeConstRef identifyBaseCase(const statement_list *const sl) {
    const auto defs = phi_node->CGetDefEdgesList();
    for (const auto def : defs) {
       std::cout << "  [+] Base case def: " << def.first->ToString() << "|" << def.first->get_kind_text() << "\n";
-      if (def.first->get_kind() != ssa_name_K) return def.first; // return the non-SSA_NAME node
+      if (def.first->get_kind() != ssa_name_K) {
+         const auto baseCaseVal = def.first; // return the non-SSA_NAME node
+	 const auto baseCaseCondBlock = sl->list_of_bloc.at(def.second);
+         return {baseCaseVal, baseCaseCondBlock->CGetStmtList().back()};
+      }
    }
 
-   return nullptr; // TODO: come up with backup when all defs are ssa_names
+   //return nullptr; // TODO: come up with backup when all defs are ssa_names
    //scan over each of the phi's defs, and tranverse the defs back to find which BB they're in, 
    // if it's a BB w/ a reucrsive call, then it's not a base case
    // NOTE: use ->bb_index to get basic block index from an instruction
@@ -338,7 +342,10 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       std::vector<std::pair<unsigned int, tree_nodeConstRef>> call_sites; // (bb_index, stmt)
       identifyRecursivePatterns(call_sites, AppM, fd, sl);
       analyzeRecursivePatterns(call_sites);
-      const auto baseCaseNode = identifyBaseCase(sl);
+      auto result = identifyBaseCase(sl);
+      const auto baseCaseNode = result.first;
+      const auto baseCaseCond = result.second;
+      std::cout << "  [+] Base Case Cond: " << baseCaseCond->ToString() << "\n";
       // TODO: identify # of states (probably number of call_sites?)
 
 
@@ -608,15 +615,13 @@ DesignFlowStep_Status RecursionRemoval::InternalExec()
       }
 
       // BB6: retval=base case; break the loop if stack is empty; otherwise decrement sp =========================================================================================
-      // retval_base = base case value. the code below is a placeholder
-      // TODO
-      {
-      const tree_nodeRef placeholder = tree_man->create_binary_operation(
-            intTy, sp_top, TM->CreateUniqueIntegerCst((integer_cst_t)1, intTy), BUILTIN_SRCP, minus_expr_K);
-      const auto ga = tree_man->create_gimple_modify_stmt(ret_base, placeholder, function_id, BUILTIN_SRCP);
-      GetPointer<ssa_name>(ret_base)->SetDefStmt(ga);
-      BB_block_6->PushBack(ga, AppM);
-      }
+      // this should set one of the retPhis to the base case value
+      // For now only handling integer recursive base cases
+      
+      const auto int_cst_baseCase = GetPointer<const integer_cst>(baseCaseNode);
+      const auto baseCaseValue = TM->CreateUniqueIntegerCst(int_cst_baseCase->value, int_cst_baseCase->type);
+      BB_block_6->PushBack(createAssign(tree_man, ret_base, baseCaseValue, function_id), AppM);
+
       // if (sp_top == 0) then BB15 else BB9
       {
       const tree_nodeRef sp_topEq0Cond = tree_man->create_binary_operation(
