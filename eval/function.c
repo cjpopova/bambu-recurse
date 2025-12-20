@@ -41,36 +41,7 @@ loop_start:
   }
 }
 
-/*int function_recurse_rep(int n) {
-  unsigned sp = 0;  
-  int stack_arg[512];
-  int stack_state[512];
-  int stack_ret[512];
-
-  stack_arg[sp] = n;
-  stack_state[sp] = 0;
-  loop_start:
-  while(stack_state[sp] == 0) {
-    if(stack_arg[sp] <= 1) {
-      if(sp == 0) {
-        stack_ret[sp-1] = 1;
-      }
-      sp--;
-      continue;
-    }
-    stack_state[sp] = 1;
-    sp++;
-    stack_state[sp] = 0;
-    stack_arg[sp] = stack_arg[sp-1] - 1;
-  }
-  int retval_recur = stack_ret[sp] * stack_ret[sp] + stack_arg[sp];
-  if(sp == 0) {
-    goto loop_start;
-  }
-  return retval_recur;
-}*/
-
-
+/*
 typedef struct {
   int n;
   int ret;
@@ -106,12 +77,43 @@ int function_iter(int n) {
     }
   }
   return result;
+}*/
+
+// Fully optimized version (too extreme)
+/*
+int function_iter(int n) {
+  int result;
+  if(n <= 1) { return n; }
+  result = 1;
+  for(int i = 2; i <= n; i++) {
+    result = result * result + i;
+  }
+  return result;
+}
+*/
+
+int function_iter(int n) {
+  int stack[512];
+  int top = -1;
+  while(n > 1) {
+    stack[++top] = n;
+    n = n-1;
+  }
+  int result = n;
+
+  while(top != -1) {
+    int v = stack[top--];
+    result = result * result + v;
+  }
+  return result;
 }
 
+/*
 int main() {
-  //#include <stdio.h>
-  printf("Recursive function: %d\n", function(5));
-  printf("Iterative function: %d\n", function_iter(5));
-  printf("Recursive function translated to Iterative function: %d\n", function_recurse_rep(5));
+  #include <stdio.h>
+  printf("Recursive function: %d\n", function(15));
+  printf("Iterative function: %d\n", function_iter(15));
+  printf("Recursive function translated to Iterative function: %d\n", function_recurse_rep(15));
   return 0;
 }
+*/
